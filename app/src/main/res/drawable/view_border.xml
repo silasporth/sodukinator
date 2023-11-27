@@ -10,7 +10,6 @@
             <stroke
                 android:width="2dp"
             android:color="#807F7F" />
-            <corners android:radius="12dp" /> <!-- Radius to make edges rounder -->
         </shape>
 
     </item>
