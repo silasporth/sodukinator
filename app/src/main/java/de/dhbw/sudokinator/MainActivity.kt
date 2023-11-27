@@ -23,6 +23,9 @@ import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import android.graphics.BitmapFactory
+import android.graphics.BlurMaskFilter
+import android.graphics.PaintFlagsDrawFilter
+import android.renderscript.ScriptGroup.Input
 import android.util.Log
 
 
@@ -30,7 +33,6 @@ class MainActivity : ComponentActivity() {
 
     lateinit var imageView: ImageView
     lateinit var captureButton: Button
-    lateinit var textView: TextView
     val REQUEST_IMAGE_CAPTURE = 100
     val CAMERA_PERMISSION_REQUEST = 101
     val sudokuBoard = Array(9) { IntArray(9) }
@@ -40,13 +42,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val sudokuImage = resources.getIdentifier("line", "drawable", packageName)
+        val sudokuImage = resources.getIdentifier("sudoku", "drawable", packageName)
 
         if (sudokuImage != 0) {
             val sudokuImageBitmap: Bitmap? = BitmapFactory.decodeResource(resources, sudokuImage)
 
             if (sudokuImageBitmap != null) {
-                scanText(sudokuImageBitmap)
+                scanBoard(sudokuImageBitmap)
             } else {
                 // Handle the case where decoding fails
                 Toast.makeText(this, "Failed to decode Sudoku image", Toast.LENGTH_SHORT).show()
@@ -97,7 +99,7 @@ class MainActivity : ComponentActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             val imageBitmap = data?.extras?.get("data") as Bitmap
-            scanText(imageBitmap)
+            scanBoard(imageBitmap)
         } else {
             super.onActivityResult(requestCode, resultCode, data)
         }
@@ -112,11 +114,9 @@ class MainActivity : ComponentActivity() {
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
-        // Draw background
         paint.color = Color.WHITE
         canvas.drawRect(0f, 0f, boardSize.toFloat(), boardSize.toFloat(), paint)
 
-        // Draw grid lines
         paint.color = Color.BLACK
         paint.strokeWidth = 2f
 
@@ -133,7 +133,6 @@ class MainActivity : ComponentActivity() {
             val endY2 = startY2
             canvas.drawLine(startX2, startY2, endX2, endY2, paint)
 
-            // Draw thicker lines between 3x3 blocks
             if (i % 3 == 0 && i > 0) {
                 paint.strokeWidth = blockLineWidth
                 canvas.drawLine(startX, startY, startX, endY, paint)
@@ -142,7 +141,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Draw Sudoku numbers
         val textSize = 40f
         paint.textSize = textSize
         paint.color = Color.BLACK
@@ -163,71 +161,36 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    private fun scanText(imageBitmap: Bitmap) {
+    private fun scanBoard(imageBitmap: Bitmap) {
         val image = InputImage.fromBitmap(imageBitmap, 0)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-
         recognizer.process(image)
             .addOnSuccessListener(OnSuccessListener<Text> { visionText ->
-                // Task completed successfully
-                displayNumbers(visionText)
+                displayNumbers(visionText, image.width / 9, image.height / 9)
             })
             .addOnFailureListener(OnFailureListener { e ->
-                // Task failed with an exception
                 Toast.makeText(this, "Text recognition failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             })
     }
 
-    private fun displayNumbers(visionText: Text) {
-        // 38 numbers
-        // 1 - 3 times
-        // 2 - 4 times
-        // 3 - 3 times
-        // 4 - 6 times
-        // 5 - 5 times
-        // 6 - 6 times
-        // 7 - 5 times
-        // 8 - 3 times
-        // 9 - 3 times
-        var row = 0
-        var col = 0
-
+    private fun displayNumbers(visionText: Text, width: Int, height: Int) {
         for (block in visionText.textBlocks) {
             for (line in block.lines) {
-                // Filter out non-numeric characters from the entire line
-                val numericText = line.text.filter { it in '1'..'9' }
-                Log.d("NumericText", "Numeric text for line: $numericText")
+                for (element in line.elements) {
+                    val value = element.text.toInt()
+                    Log.d("NumericText", "Numeric text for line: $value")
 
-                // Process each digit individually
-                numericText.forEach { digit ->
-                    // Update the sudokuBoard
-                    if(checkDuplicate(sudokuBoard,row,col)){
-                        row++
-                    } else {
-                        sudokuBoard[row][col] = digit.toString().toInt()
-                        col++
+                    val x = element.boundingBox?.exactCenterX()!!.toInt() / width
+                    val y = element.boundingBox?.exactCenterY()!!.toInt() / height
+                    if (value != null && x in 0..8 && y in 0..8) {
+                        sudokuBoard[y][x] = value
                     }
-                    // Reset column and move to the next row if we reach the end of a row
-                    if (col == 9) {
-                        col = 0
-                        row++
-                    }
+
                 }
             }
         }
-
-        // Update the textView with the recognized numeric text
         val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
         imageView.setImageBitmap(sudokuBoardBitmap)
-    }
-
-    private fun checkDuplicate(board: Array<IntArray>, row: Int, digit: Int): Boolean {
-        for (col in board[row].indices) {
-            if (board[row][col] == digit) {
-                return true
-            }
-        }
-        return false
     }
 }
 
