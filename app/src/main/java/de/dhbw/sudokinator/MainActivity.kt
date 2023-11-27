@@ -22,6 +22,8 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import android.graphics.BitmapFactory
+import android.util.Log
 
 
 class MainActivity : ComponentActivity() {
@@ -38,12 +40,28 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val sudokuImage = resources.getIdentifier("line", "drawable", packageName)
+
+        if (sudokuImage != 0) {
+            val sudokuImageBitmap: Bitmap? = BitmapFactory.decodeResource(resources, sudokuImage)
+
+            if (sudokuImageBitmap != null) {
+                scanText(sudokuImageBitmap)
+            } else {
+                // Handle the case where decoding fails
+                Toast.makeText(this, "Failed to decode Sudoku image", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // Handle the case where the resource is not found
+            Toast.makeText(this, "Sudoku image not found", Toast.LENGTH_SHORT).show()
+        }
+
+
         imageView = findViewById(R.id.imageView)
         captureButton = findViewById(R.id.captureButton)
-        textView = findViewById(R.id.textView)
 
-        val sudokuBitmap = drawSudokuBoard(sudokuBoard)
-        imageView.setImageBitmap(sudokuBitmap)
+        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+        imageView.setImageBitmap(sudokuBoardBitmap)
 
         captureButton.setOnClickListener {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -161,20 +179,55 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun displayNumbers(visionText: Text) {
-        val result = StringBuilder()
+        // 38 numbers
+        // 1 - 3 times
+        // 2 - 4 times
+        // 3 - 3 times
+        // 4 - 6 times
+        // 5 - 5 times
+        // 6 - 6 times
+        // 7 - 5 times
+        // 8 - 3 times
+        // 9 - 3 times
+        var row = 0
+        var col = 0
 
         for (block in visionText.textBlocks) {
             for (line in block.lines) {
-                for (element in line.elements) {
-                    // Filter out non-numeric characters
-                    val numericText = element.text.filter { it.isDigit() }
-                    result.append(numericText).append(" ")
+                // Filter out non-numeric characters from the entire line
+                val numericText = line.text.filter { it in '1'..'9' }
+                Log.d("NumericText", "Numeric text for line: $numericText")
+
+                // Process each digit individually
+                numericText.forEach { digit ->
+                    // Update the sudokuBoard
+                    if(checkDuplicate(sudokuBoard,row,col)){
+                        row++
+                    } else {
+                        sudokuBoard[row][col] = digit.toString().toInt()
+                        col++
+                    }
+                    // Reset column and move to the next row if we reach the end of a row
+                    if (col == 9) {
+                        col = 0
+                        row++
+                    }
                 }
-                result.append("\n")
             }
         }
 
         // Update the textView with the recognized numeric text
-        textView.text = result.toString()
+        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+        imageView.setImageBitmap(sudokuBoardBitmap)
+    }
+
+    private fun checkDuplicate(board: Array<IntArray>, row: Int, digit: Int): Boolean {
+        for (col in board[row].indices) {
+            if (board[row][col] == digit) {
+                return true
+            }
+        }
+        return false
     }
 }
+
