@@ -21,7 +21,6 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import android.graphics.BitmapFactory
 import android.util.Log
 
 
@@ -31,37 +30,23 @@ class MainActivity : ComponentActivity() {
     lateinit var captureButton: Button
     lateinit var editButton: Button
     lateinit var solveButton: Button
+    lateinit var clearButton: Button
     val REQUEST_IMAGE_CAPTURE = 100
     val CAMERA_PERMISSION_REQUEST = 101
+    private val EDIT_ACTIVITY_REQUEST = 1
     val sudokuBoard = Array(9) { IntArray(9) }
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Debugging
-        val sudokuImage = resources.getIdentifier("sudoku", "drawable", packageName)
-
-        if (sudokuImage != 0) {
-            val sudokuImageBitmap: Bitmap? = BitmapFactory.decodeResource(resources, sudokuImage)
-
-            if (sudokuImageBitmap != null) {
-                scanBoard(sudokuImageBitmap)
-            } else {
-                // Handle the case where decoding fails
-                Toast.makeText(this, "Failed to decode Sudoku image", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            // Handle the case where the resource is not found
-            Toast.makeText(this, "Sudoku image not found", Toast.LENGTH_SHORT).show()
-        }
-
-
         imageView = findViewById(R.id.imageView)
         captureButton = findViewById(R.id.captureButton)
         editButton = findViewById(R.id.editButton)
         solveButton = findViewById(R.id.solveButton)
+        clearButton = findViewById(R.id.clearButton)
 
         val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
         imageView.setImageBitmap(sudokuBoardBitmap)
@@ -86,9 +71,20 @@ class MainActivity : ComponentActivity() {
 
         editButton.setOnClickListener {
             val intent = Intent(this@MainActivity, EditActivity::class.java)
-            startActivity(intent)
+            intent.putExtra("sudokuBoard", sudokuBoard)
+            startActivityForResult(intent, EDIT_ACTIVITY_REQUEST)
+            Log.d("State", "Sudoku board: $sudokuBoard")
         }
 
+        clearButton.setOnClickListener {
+            for(i in 0 until 9){
+                for (j in 0 until 9){
+                    sudokuBoard[i][j] = 0
+                }
+            }
+            val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+            imageView.setImageBitmap(sudokuBoardBitmap)
+        }
     }
 
     private fun openCamera() {
@@ -113,12 +109,28 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+        if (requestCode == EDIT_ACTIVITY_REQUEST && resultCode == RESULT_OK) {
+            val modifiedBoard = data?.getSerializableExtra("modifiedBoard") as Array<IntArray>
+            updateSudokuBoard(modifiedBoard)
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             val imageBitmap = data?.extras?.get("data") as Bitmap
             scanBoard(imageBitmap)
         } else {
             super.onActivityResult(requestCode, resultCode, data)
         }
+    }
+
+    private fun updateSudokuBoard(modifiedBoard: Array<IntArray>) {
+        // Update the sudokuBoard with the modified board
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                sudokuBoard[i][j] = modifiedBoard[i][j]
+            }
+        }
+
+        // Redraw the Sudoku board
+        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+        imageView.setImageBitmap(sudokuBoardBitmap)
     }
 
     private fun drawSudokuBoard(sudokuBoard: Array<IntArray>): Bitmap {
@@ -193,21 +205,28 @@ class MainActivity : ComponentActivity() {
         for (block in visionText.textBlocks) {
             for (line in block.lines) {
                 for (element in line.elements) {
-                    val value = element.text.toInt()
-                    Log.d("NumericText", "Numeric text for line: $value")
+                    try {
+                        val value = element.text.toInt()
+                        Log.d("NumericText", "Numeric text for line: $value")
 
-                    val x = element.boundingBox?.exactCenterX()!!.toInt() / width
-                    val y = element.boundingBox?.exactCenterY()!!.toInt() / height
-                    if (value != null && x in 0..8 && y in 0..8 && value in 1..9) {
-                        sudokuBoard[y][x] = value
+                        val x = element.boundingBox?.exactCenterX()?.toInt()?.div(width) ?: 0
+                        val y = element.boundingBox?.exactCenterY()?.toInt()?.div(height) ?: 0
+                        if (x in 0..8 && y in 0..8 && value in 1..9) {
+                            sudokuBoard[y][x] = value
+                        }
+                    } catch (e: NumberFormatException) {
+                        Log.e("NumericText", "Error converting text to number: ${element.text}")
+                        // Continue to the next element even if conversion fails
+                        continue
                     }
-
                 }
             }
         }
         val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
         imageView.setImageBitmap(sudokuBoardBitmap)
     }
+
+
 
     fun isValid(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
         // Check if the number can be placed in the specified cell

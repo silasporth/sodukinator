@@ -80,5 +80,6 @@ dependencies {
 
     // ocr dependencies
     implementation("com.google.mlkit:text-recognition:16.0.0")
+    implementation("com.vanniktech:android-image-cropper:4.5.0")
 
 }

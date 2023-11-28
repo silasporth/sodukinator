@@ -17,10 +17,23 @@
         android:alignmentMode="alignMargins"
         android:columnCount="9"
         android:columnOrderPreserved="false"
-        android:rowCount="9">
+        android:rowCount="9"
+        >
 
         <!-- Add buttons or other views here for each cell in the grid -->
 
     </GridLayout>
+
+    <!-- Add a "Done" button at the bottom in the middle -->
+    <Button
+        android:id="@+id/doneButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:text="Done"
+        android:layout_marginBottom="50dp"
+        android:background="@drawable/rounded_button"
+        />
 
 </RelativeLayout>
