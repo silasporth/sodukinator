@@ -23,7 +23,6 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import android.graphics.BitmapFactory
 import android.util.Log
-import androidx.appcompat.widget.ButtonBarLayout
 
 
 class MainActivity : ComponentActivity() {
@@ -77,10 +76,14 @@ class MainActivity : ComponentActivity() {
         }
 
         solveButton.setOnClickListener {
-            solveSudoku(sudokuBoard)
-            val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
-            imageView.setImageBitmap(sudokuBoardBitmap)
+            if (solveSudoku(sudokuBoard)) {
+                val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+                imageView.setImageBitmap(sudokuBoardBitmap)
+            } else {
+                Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
+            }
         }
+
     }
 
     private fun openCamera() {
@@ -243,6 +246,7 @@ class MainActivity : ComponentActivity() {
         // No valid digit found, backtrack
         return false
     }
+
 
     fun findEmptyCell(board: Array<IntArray>): Pair<Int, Int>? {
         // Find the first empty cell (cell with value 0)
