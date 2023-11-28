@@ -11,7 +11,6 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.Button
 import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
@@ -23,16 +22,16 @@ import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import android.graphics.BitmapFactory
-import android.graphics.BlurMaskFilter
-import android.graphics.PaintFlagsDrawFilter
-import android.renderscript.ScriptGroup.Input
 import android.util.Log
+import androidx.appcompat.widget.ButtonBarLayout
 
 
 class MainActivity : ComponentActivity() {
 
     lateinit var imageView: ImageView
     lateinit var captureButton: Button
+    lateinit var editButton: Button
+    lateinit var solveButton: Button
     val REQUEST_IMAGE_CAPTURE = 100
     val CAMERA_PERMISSION_REQUEST = 101
     val sudokuBoard = Array(9) { IntArray(9) }
@@ -42,6 +41,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Debugging
         val sudokuImage = resources.getIdentifier("sudoku", "drawable", packageName)
 
         if (sudokuImage != 0) {
@@ -61,6 +61,8 @@ class MainActivity : ComponentActivity() {
 
         imageView = findViewById(R.id.imageView)
         captureButton = findViewById(R.id.captureButton)
+        editButton = findViewById(R.id.editButton)
+        solveButton = findViewById(R.id.solveButton)
 
         val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
         imageView.setImageBitmap(sudokuBoardBitmap)
@@ -72,6 +74,12 @@ class MainActivity : ComponentActivity() {
             } else {
                 openCamera()
             }
+        }
+
+        solveButton.setOnClickListener {
+            solveSudoku(sudokuBoard)
+            val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+            imageView.setImageBitmap(sudokuBoardBitmap)
         }
     }
 
@@ -182,7 +190,7 @@ class MainActivity : ComponentActivity() {
 
                     val x = element.boundingBox?.exactCenterX()!!.toInt() / width
                     val y = element.boundingBox?.exactCenterY()!!.toInt() / height
-                    if (value != null && x in 0..8 && y in 0..8) {
+                    if (value != null && x in 0..8 && y in 0..8 && value in 1..9) {
                         sudokuBoard[y][x] = value
                     }
 
@@ -192,5 +200,59 @@ class MainActivity : ComponentActivity() {
         val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
         imageView.setImageBitmap(sudokuBoardBitmap)
     }
-}
+
+    fun isValid(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
+        // Check if the number can be placed in the specified cell
+        for (i in 0 until 9) {
+            if (board[row][i] == num || board[i][col] == num ||
+                board[3 * (row / 3) + i / 3][3 * (col / 3) + i % 3] == num
+            ) {
+                return false
+            }
+        }
+        return true
+    }
+
+    fun solveSudoku(board: Array<IntArray>): Boolean {
+        // Find an empty cell
+        val emptyCell = findEmptyCell(board)
+
+        // If no empty cell is found, the puzzle is solved
+        if (emptyCell == null) {
+            return true
+        }
+
+        val (row, col) = emptyCell
+
+        // Try placing digits 1 through 9 in the empty cell
+        for (num in 1..9) {
+            if (isValid(board, row, col, num)) {
+                // Place the digit if it's valid
+                board[row][col] = num
+
+                // Recursively try to solve the rest of the puzzle
+                if (solveSudoku(board)) {
+                    return true
+                }
+
+                // If placing the current digit doesn't lead to a solution, backtrack
+                board[row][col] = 0
+            }
+        }
+
+        // No valid digit found, backtrack
+        return false
+    }
+
+    fun findEmptyCell(board: Array<IntArray>): Pair<Int, Int>? {
+        // Find the first empty cell (cell with value 0)
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                if (board[i][j] == 0) {
+                    return Pair(i, j)
+                }
+            }
+        }
+        return null
+    }}
 
