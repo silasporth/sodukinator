@@ -84,6 +84,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        editButton.setOnClickListener {
+            val intent = Intent(this@MainActivity, EditActivity::class.java)
+            startActivity(intent)
+        }
+
     }
 
     private fun openCamera() {
