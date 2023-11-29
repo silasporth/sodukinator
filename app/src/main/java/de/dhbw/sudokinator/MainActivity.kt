@@ -240,6 +240,19 @@ class MainActivity : ComponentActivity() {
         return true
     }
 
+    fun isValidBoard(board: Array<IntArray>): Boolean {
+        // Check if the current state of the board is valid
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                val num = board[i][j]
+                if (num != 0 && !isValid(board, i, j, num)) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
     fun solveSudoku(board: Array<IntArray>): Boolean {
         // Find an empty cell
         val emptyCell = findEmptyCell(board)
@@ -257,8 +270,8 @@ class MainActivity : ComponentActivity() {
                 // Place the digit if it's valid
                 board[row][col] = num
 
-                // Recursively try to solve the rest of the puzzle
-                if (solveSudoku(board)) {
+                // Check if the board is still valid after placing the digit
+                if (isValidBoard(board) && solveSudoku(board)) {
                     return true
                 }
 
@@ -270,7 +283,6 @@ class MainActivity : ComponentActivity() {
         // No valid digit found, backtrack
         return false
     }
-
 
     fun findEmptyCell(board: Array<IntArray>): Pair<Int, Int>? {
         // Find the first empty cell (cell with value 0)
