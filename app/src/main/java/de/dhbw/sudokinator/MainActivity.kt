@@ -61,9 +61,13 @@ class MainActivity : ComponentActivity() {
         }
 
         solveButton.setOnClickListener {
-            if (solveSudoku(sudokuBoard)) {
-                val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
-                imageView.setImageBitmap(sudokuBoardBitmap)
+            if(isSolvable(sudokuBoard)) {
+                if (solveSudoku(sudokuBoard)) {
+                    val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+                    imageView.setImageBitmap(sudokuBoardBitmap)
+                } else {
+                    Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
+                }
             } else {
                 Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
             }
@@ -226,8 +230,50 @@ class MainActivity : ComponentActivity() {
         imageView.setImageBitmap(sudokuBoardBitmap)
     }
 
+    // Check if the initial board state is sovable (after scan)
+    fun isSolvable(sudokuBoard: Array<IntArray>): Boolean {
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                val num = sudokuBoard[i][j]
 
+                if (num != 0 && !isValidForSolving(sudokuBoard, i, j, num)) {
+                    return false
+                }
+            }
+        }
 
+        return true
+    }
+
+    fun isValidForSolving(sudokuBoard: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
+        // Check the row
+        for (i in 0 until 9) {
+            if (i != col && sudokuBoard[row][i] == num) {
+                return false
+            }
+        }
+
+        // Check the column
+        for (i in 0 until 9) {
+            if (i != row && sudokuBoard[i][col] == num) {
+                return false
+            }
+        }
+
+        // Check the 3x3 grid
+        val gridStartRow = 3 * (row / 3)
+        val gridStartCol = 3 * (col / 3)
+
+        for (i in gridStartRow until gridStartRow + 3) {
+            for (j in gridStartCol until gridStartCol + 3) {
+                if ((i != row || j != col) && sudokuBoard[i][j] == num) {
+                    return false
+                }
+            }
+        }
+
+        return true
+    }
     fun isValid(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
         // Check if the number can be placed in the specified cell
         for (i in 0 until 9) {
@@ -235,19 +281,6 @@ class MainActivity : ComponentActivity() {
                 board[3 * (row / 3) + i / 3][3 * (col / 3) + i % 3] == num
             ) {
                 return false
-            }
-        }
-        return true
-    }
-
-    fun isValidBoard(board: Array<IntArray>): Boolean {
-        // Check if the current state of the board is valid
-        for (i in 0 until 9) {
-            for (j in 0 until 9) {
-                val num = board[i][j]
-                if (num != 0 && !isValid(board, i, j, num)) {
-                    return false
-                }
             }
         }
         return true
@@ -268,10 +301,15 @@ class MainActivity : ComponentActivity() {
         for (num in 1..9) {
             if (isValid(board, row, col, num)) {
                 // Place the digit if it's valid
+                Log.d("solveSudoku", "Placed $num at ($row, $col)")
+                logBoard(board)
                 board[row][col] = num
 
-                // Check if the board is still valid after placing the digit
-                if (isValidBoard(board) && solveSudoku(board)) {
+                // Recursively try to solve the rest of the puzzle
+                if (solveSudoku(board)) {
+                    Log.d("solveSudoku", "Backtracked at ($row, $col)")
+                    logBoard(board)
+
                     return true
                 }
 
@@ -282,6 +320,13 @@ class MainActivity : ComponentActivity() {
 
         // No valid digit found, backtrack
         return false
+    }
+
+    fun logBoard(board: Array<IntArray>) {
+        for (row in board) {
+            Log.d("solveSudoku", row.joinToString(" "))
+        }
+        Log.d("solveSudoku", "----")
     }
 
     fun findEmptyCell(board: Array<IntArray>): Pair<Int, Int>? {
