@@ -11,7 +11,6 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.Button
 import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
@@ -22,16 +21,21 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import android.util.Log
 
 
 class MainActivity : ComponentActivity() {
 
     lateinit var imageView: ImageView
     lateinit var captureButton: Button
-    lateinit var textView: TextView
+    lateinit var editButton: Button
+    lateinit var solveButton: Button
+    lateinit var clearButton: Button
     val REQUEST_IMAGE_CAPTURE = 100
     val CAMERA_PERMISSION_REQUEST = 101
+    private val EDIT_ACTIVITY_REQUEST = 1
     val sudokuBoard = Array(9) { IntArray(9) }
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,10 +44,12 @@ class MainActivity : ComponentActivity() {
 
         imageView = findViewById(R.id.imageView)
         captureButton = findViewById(R.id.captureButton)
-        textView = findViewById(R.id.textView)
+        editButton = findViewById(R.id.editButton)
+        solveButton = findViewById(R.id.solveButton)
+        clearButton = findViewById(R.id.clearButton)
 
-        val sudokuBitmap = drawSudokuBoard(sudokuBoard)
-        imageView.setImageBitmap(sudokuBitmap)
+        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+        imageView.setImageBitmap(sudokuBoardBitmap)
 
         captureButton.setOnClickListener {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -52,6 +58,36 @@ class MainActivity : ComponentActivity() {
             } else {
                 openCamera()
             }
+        }
+
+        solveButton.setOnClickListener {
+            if(isSolvable(sudokuBoard)) {
+                if (solveSudoku(sudokuBoard)) {
+                    val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+                    imageView.setImageBitmap(sudokuBoardBitmap)
+                } else {
+                    Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        editButton.setOnClickListener {
+            val intent = Intent(this@MainActivity, EditActivity::class.java)
+            intent.putExtra("sudokuBoard", sudokuBoard)
+            startActivityForResult(intent, EDIT_ACTIVITY_REQUEST)
+            Log.d("State", "Sudoku board: $sudokuBoard")
+        }
+
+        clearButton.setOnClickListener {
+            for(i in 0 until 9){
+                for (j in 0 until 9){
+                    sudokuBoard[i][j] = 0
+                }
+            }
+            val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+            imageView.setImageBitmap(sudokuBoardBitmap)
         }
     }
 
@@ -77,12 +113,28 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+        if (requestCode == EDIT_ACTIVITY_REQUEST && resultCode == RESULT_OK) {
+            val modifiedBoard = data?.getSerializableExtra("modifiedBoard") as Array<IntArray>
+            updateSudokuBoard(modifiedBoard)
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             val imageBitmap = data?.extras?.get("data") as Bitmap
-            scanText(imageBitmap)
+            scanBoard(imageBitmap)
         } else {
             super.onActivityResult(requestCode, resultCode, data)
         }
+    }
+
+    private fun updateSudokuBoard(modifiedBoard: Array<IntArray>) {
+        // Update the sudokuBoard with the modified board
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                sudokuBoard[i][j] = modifiedBoard[i][j]
+            }
+        }
+
+        // Redraw the Sudoku board
+        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+        imageView.setImageBitmap(sudokuBoardBitmap)
     }
 
     private fun drawSudokuBoard(sudokuBoard: Array<IntArray>): Bitmap {
@@ -94,11 +146,9 @@ class MainActivity : ComponentActivity() {
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
-        // Draw background
         paint.color = Color.WHITE
         canvas.drawRect(0f, 0f, boardSize.toFloat(), boardSize.toFloat(), paint)
 
-        // Draw grid lines
         paint.color = Color.BLACK
         paint.strokeWidth = 2f
 
@@ -115,7 +165,6 @@ class MainActivity : ComponentActivity() {
             val endY2 = startY2
             canvas.drawLine(startX2, startY2, endX2, endY2, paint)
 
-            // Draw thicker lines between 3x3 blocks
             if (i % 3 == 0 && i > 0) {
                 paint.strokeWidth = blockLineWidth
                 canvas.drawLine(startX, startY, startX, endY, paint)
@@ -124,7 +173,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Draw Sudoku numbers
         val textSize = 40f
         paint.textSize = textSize
         paint.color = Color.BLACK
@@ -145,36 +193,151 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    private fun scanText(imageBitmap: Bitmap) {
+    private fun scanBoard(imageBitmap: Bitmap) {
         val image = InputImage.fromBitmap(imageBitmap, 0)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-
         recognizer.process(image)
             .addOnSuccessListener(OnSuccessListener<Text> { visionText ->
-                // Task completed successfully
-                displayNumbers(visionText)
+                displayNumbers(visionText, image.width / 9, image.height / 9)
             })
             .addOnFailureListener(OnFailureListener { e ->
-                // Task failed with an exception
                 Toast.makeText(this, "Text recognition failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             })
     }
 
-    private fun displayNumbers(visionText: Text) {
-        val result = StringBuilder()
-
+    private fun displayNumbers(visionText: Text, width: Int, height: Int) {
         for (block in visionText.textBlocks) {
             for (line in block.lines) {
                 for (element in line.elements) {
-                    // Filter out non-numeric characters
-                    val numericText = element.text.filter { it.isDigit() }
-                    result.append(numericText).append(" ")
+                    try {
+                        val value = element.text.toInt()
+                        Log.d("NumericText", "Numeric text for line: $value")
+
+                        val x = element.boundingBox?.exactCenterX()?.toInt()?.div(width) ?: 0
+                        val y = element.boundingBox?.exactCenterY()?.toInt()?.div(height) ?: 0
+                        if (x in 0..8 && y in 0..8 && value in 1..9) {
+                            sudokuBoard[y][x] = value
+                        }
+                    } catch (e: NumberFormatException) {
+                        Log.e("NumericText", "Error converting text to number: ${element.text}")
+                        // Continue to the next element even if conversion fails
+                        continue
+                    }
                 }
-                result.append("\n")
+            }
+        }
+        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+        imageView.setImageBitmap(sudokuBoardBitmap)
+    }
+
+    // Check if the initial board state is sovable (after scan)
+    fun isSolvable(sudokuBoard: Array<IntArray>): Boolean {
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                val num = sudokuBoard[i][j]
+
+                if (num != 0 && !isValidForSolving(sudokuBoard, i, j, num)) {
+                    return false
+                }
             }
         }
 
-        // Update the textView with the recognized numeric text
-        textView.text = result.toString()
+        return true
     }
-}
+
+    fun isValidForSolving(sudokuBoard: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
+        // Check the row
+        for (i in 0 until 9) {
+            if (i != col && sudokuBoard[row][i] == num) {
+                return false
+            }
+        }
+
+        // Check the column
+        for (i in 0 until 9) {
+            if (i != row && sudokuBoard[i][col] == num) {
+                return false
+            }
+        }
+
+        // Check the 3x3 grid
+        val gridStartRow = 3 * (row / 3)
+        val gridStartCol = 3 * (col / 3)
+
+        for (i in gridStartRow until gridStartRow + 3) {
+            for (j in gridStartCol until gridStartCol + 3) {
+                if ((i != row || j != col) && sudokuBoard[i][j] == num) {
+                    return false
+                }
+            }
+        }
+
+        return true
+    }
+    fun isValid(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
+        // Check if the number can be placed in the specified cell
+        for (i in 0 until 9) {
+            if (board[row][i] == num || board[i][col] == num ||
+                board[3 * (row / 3) + i / 3][3 * (col / 3) + i % 3] == num
+            ) {
+                return false
+            }
+        }
+        return true
+    }
+
+    fun solveSudoku(board: Array<IntArray>): Boolean {
+        // Find an empty cell
+        val emptyCell = findEmptyCell(board)
+
+        // If no empty cell is found, the puzzle is solved
+        if (emptyCell == null) {
+            return true
+        }
+
+        val (row, col) = emptyCell
+
+        // Try placing digits 1 through 9 in the empty cell
+        for (num in 1..9) {
+            if (isValid(board, row, col, num)) {
+                // Place the digit if it's valid
+                Log.d("solveSudoku", "Placed $num at ($row, $col)")
+                logBoard(board)
+                board[row][col] = num
+
+                // Recursively try to solve the rest of the puzzle
+                if (solveSudoku(board)) {
+                    Log.d("solveSudoku", "Backtracked at ($row, $col)")
+                    logBoard(board)
+
+                    return true
+                }
+
+                // If placing the current digit doesn't lead to a solution, backtrack
+                board[row][col] = 0
+            }
+        }
+
+        // No valid digit found, backtrack
+        return false
+    }
+
+    fun logBoard(board: Array<IntArray>) {
+        for (row in board) {
+            Log.d("solveSudoku", row.joinToString(" "))
+        }
+        Log.d("solveSudoku", "----")
+    }
+
+    fun findEmptyCell(board: Array<IntArray>): Pair<Int, Int>? {
+        // Find the first empty cell (cell with value 0)
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                if (board[i][j] == 0) {
+                    return Pair(i, j)
+                }
+            }
+        }
+        return null
+    }}
+
