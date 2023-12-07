@@ -11,12 +11,21 @@ Eine weitere denkbare Funktion könnte darin bestehen, dem Nutzer die Option zu 
 
 In Bezug auf das Design soll die App auf ein leichtgewichtiges Erscheinungsbild mit einer minimalen Farbpalette setzen, die dennoch ansprechend und modern ist. Damit wird die Benutzererfahrung verbessert und die App bleibt intuitiv.
 
-## Functionality and design
+## Functionality
 
-1. The app should have a meaningful and self-explanatory greeting title, something like "Scan a Sudoku board".
-2. The background should be a blurry white color and contain a square where you can see what the back camera sees. (something similar to Photomath)
-3. Once the app is opened, the rear camera should be turned on automatically and show its view inside that square. Should a Sudoku board be scanned, the app automatically presents an overlay image of the solution.
-4. There should be a button named "Correction" that upon pressing opens an overlay of the scanned Sudoku board and allows user input for the correction of the scanned numbers, should that happen.
-5. (Extra feature) If time allows, there should be a second button that generates a Sudoku board and allows the user to solve it.
+1. Press Capture to start capturing an image of a sudoku
+2. Select the 1:1 image format in the camera menu
+3. Take a picture of the sudoku board, try to fit it on the 1:1 screen
+4. The scanned numbers should be added to the sudoku board
+5. If needed, open the edit menu to add/delete false inputs
+6. Solve the sudoku
+7. You can clear the sudoku contents and try again with a new sudoku
 
-![alt text](./sudokinatorMockupV1.png)
+**Note**: After the image cropper feature gets added, step 2 and 3 will be unnecessary as you can crop the image around the sudoku board directly after capture.
+
+## Dependencies
+
+1. Camera dependency: CameraX version 1.3.0-rc01
+2. OCR service: MlKit text recognition version 16.0.0
+
+![alt text](./images/capture.png) | ![alt text](./images/edit.png) | ![alt text](./images/solve.png) | ![alt text](./images/main.png)
