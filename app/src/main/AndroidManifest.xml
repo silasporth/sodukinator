@@ -36,7 +36,8 @@
         <activity
             android:name=".EditActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme"></activity>
+            android:theme="@style/AppTheme"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name="com.canhub.cropper.CropImageActivity"
