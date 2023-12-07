@@ -1,6 +1,5 @@
 package de.dhbw.sudokinator
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -12,197 +11,185 @@ import android.provider.MediaStore
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.gms.tasks.OnFailureListener
-import com.google.android.gms.tasks.OnSuccessListener
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import android.util.Log
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import de.dhbw.sudokinator.databinding.ActivityMainBinding
 
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
-    lateinit var imageView: ImageView
-    lateinit var captureButton: Button
-    lateinit var editButton: Button
-    lateinit var solveButton: Button
-    lateinit var clearButton: Button
-    val REQUEST_IMAGE_CAPTURE = 100
-    val CAMERA_PERMISSION_REQUEST = 101
-    private val EDIT_ACTIVITY_REQUEST = 1
-    val sudokuBoard = Array(9) { IntArray(9) }
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var imageView: ImageView
+    private lateinit var captureButton: Button
+    private lateinit var editButton: Button
+    private lateinit var solveButton: Button
+    private lateinit var clearButton: Button
+    private val CAMERA_PERMISSION_REQUEST = 101
+    private val sudokuBoard = Array(9) { IntArray(9) }
+    private val cleanSudokuImage: Bitmap = createCleanSudokuImage()
 
+    private val cameraActivityResultLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            val imageBitmap = it.data?.extras?.get("data") as Bitmap
+            scanBoard(imageBitmap)
+        }
+    private val editActivityResultLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            when (it.resultCode) {
+                RESULT_OK -> {
+                    val modifiedBoard = getSudokuFromIntentOrNull(it.data)
+                    if (modifiedBoard == null) {
+                        toastErrorSomething()
+                    } else {
+                        updateSudokuBoard(modifiedBoard)
+                    }
+                }
 
+                ACTIVITY_RESULT_ERROR -> {
+                    toastErrorSomething()
+                }
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        imageView = findViewById(R.id.imageView)
-        captureButton = findViewById(R.id.captureButton)
-        editButton = findViewById(R.id.editButton)
-        solveButton = findViewById(R.id.solveButton)
-        clearButton = findViewById(R.id.clearButton)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
-        imageView.setImageBitmap(sudokuBoardBitmap)
+        imageView = binding.imageView
+        captureButton = binding.captureButton
+        editButton = binding.editButton
+        solveButton = binding.solveButton
+        clearButton = binding.clearButton
+
+        drawSudokuBoard(sudokuBoard)
 
         captureButton.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this, android.Manifest.permission.CAMERA
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 // Camera permission not granted, request it
-                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST)
+                ActivityCompat.requestPermissions(
+                    this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST
+                )
             } else {
                 openCamera()
             }
         }
 
+        editButton.setOnClickListener {
+            editActivityResultLauncher.launch(
+                Intent(this@MainActivity, EditActivity::class.java).putExtra(
+                    INTENT_EXTRA_SUDOKU_BOARD, sudokuBoard
+                )
+            )
+            Log.d("State", "Sudoku board: ${sudokuBoard.contentDeepToString()}")
+        }
+
         solveButton.setOnClickListener {
-            if(isSolvable(sudokuBoard)) {
+            if (isSolvable(sudokuBoard)) {
                 if (solveSudoku(sudokuBoard)) {
-                    val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
-                    imageView.setImageBitmap(sudokuBoardBitmap)
+                    updateSudokuBoard(sudokuBoard)
                 } else {
-                    Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT)
+                        .show()
                 }
             } else {
                 Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
             }
         }
 
-        editButton.setOnClickListener {
-            val intent = Intent(this@MainActivity, EditActivity::class.java)
-            intent.putExtra("sudokuBoard", sudokuBoard)
-            startActivityForResult(intent, EDIT_ACTIVITY_REQUEST)
-            Log.d("State", "Sudoku board: $sudokuBoard")
-        }
 
         clearButton.setOnClickListener {
-            for(i in 0 until 9){
-                for (j in 0 until 9){
+            for (i in 0 until 9) {
+                for (j in 0 until 9) {
                     sudokuBoard[i][j] = 0
                 }
             }
-            val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
-            imageView.setImageBitmap(sudokuBoardBitmap)
+            updateSudokuBoard(sudokuBoard)
         }
     }
 
     private fun openCamera() {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        try {
-            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
-        } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this, "Error: " + e.localizedMessage, Toast.LENGTH_SHORT).show()
-        }
+        cameraActivityResultLauncher.launch(takePictureIntent)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_REQUEST) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Camera permission granted, open the camera
-                openCamera()
+
             } else {
                 Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == EDIT_ACTIVITY_REQUEST && resultCode == RESULT_OK) {
-            val modifiedBoard = data?.getSerializableExtra("modifiedBoard") as Array<IntArray>
-            updateSudokuBoard(modifiedBoard)
-        } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            val imageBitmap = data?.extras?.get("data") as Bitmap
-            scanBoard(imageBitmap)
-        } else {
-            super.onActivityResult(requestCode, resultCode, data)
-        }
-    }
-
     private fun updateSudokuBoard(modifiedBoard: Array<IntArray>) {
         // Update the sudokuBoard with the modified board
         for (i in 0 until 9) {
-            for (j in 0 until 9) {
-                sudokuBoard[i][j] = modifiedBoard[i][j]
-            }
+            sudokuBoard[i] = modifiedBoard[i].clone()
         }
 
         // Redraw the Sudoku board
-        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
+        drawSudokuBoard(modifiedBoard)
+    }
+
+    private fun drawSudokuBoard(sudokuBoard: Array<IntArray>) {
+        val sudokuBoardBitmap = generateSudokuImage(sudokuBoard)
         imageView.setImageBitmap(sudokuBoardBitmap)
     }
 
-    private fun drawSudokuBoard(sudokuBoard: Array<IntArray>): Bitmap {
-        val size = sudokuBoard.size
-        val cellSize = 60
-        val blockLineWidth = 4f
-        val boardSize = size * cellSize
-        val bitmap = Bitmap.createBitmap(boardSize, boardSize, Bitmap.Config.ARGB_8888)
+    private fun generateSudokuImage(sudokuBoard: Array<IntArray>): Bitmap {
+        val bitmap = cleanSudokuImage.copy(cleanSudokuImage.config, true)
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
-        paint.color = Color.WHITE
-        canvas.drawRect(0f, 0f, boardSize.toFloat(), boardSize.toFloat(), paint)
-
-        paint.color = Color.BLACK
-        paint.strokeWidth = 2f
-
-        for (i in 0..size) {
-            val startX = i * cellSize.toFloat()
-            val startY = 0f
-            val endX = startX
-            val endY = boardSize.toFloat()
-            canvas.drawLine(startX, startY, endX, endY, paint)
-
-            val startX2 = 0f
-            val startY2 = i * cellSize.toFloat()
-            val endX2 = boardSize.toFloat()
-            val endY2 = startY2
-            canvas.drawLine(startX2, startY2, endX2, endY2, paint)
-
-            if (i % 3 == 0 && i > 0) {
-                paint.strokeWidth = blockLineWidth
-                canvas.drawLine(startX, startY, startX, endY, paint)
-                canvas.drawLine(startX2, startY2, endX2, startY2, paint)
-                paint.strokeWidth = 2f
-            }
-        }
-
+        // Draw Numbers
         val textSize = 40f
         paint.textSize = textSize
         paint.color = Color.BLACK
         paint.textAlign = Paint.Align.CENTER
+        val halfCellSize = SUDOKU_CELL_PIXEL_SIZE / 2
 
-        for (row in 0 until size) {
-            for (col in 0 until size) {
+        for (row in 0 until SUDOKU_ROWS) {
+            for (col in 0 until SUDOKU_COLUMNS) {
                 val cellValue = sudokuBoard[row][col]
-                if (cellValue != 0) {
-                    val x = col * cellSize + cellSize / 2
-                    val y = row * cellSize + cellSize / 2 - (paint.ascent() + paint.descent()) / 2
-                    canvas.drawText(cellValue.toString(), x.toFloat(), y, paint)
-                }
+                if (cellValue == 0) continue
+
+                val x = col * SUDOKU_CELL_PIXEL_SIZE + halfCellSize
+                val y =
+                    row * SUDOKU_CELL_PIXEL_SIZE + halfCellSize - (paint.ascent() + paint.descent()) / 2
+                canvas.drawText(cellValue.toString(), x, y, paint)
             }
         }
-
         return bitmap
     }
-
 
     private fun scanBoard(imageBitmap: Bitmap) {
         val image = InputImage.fromBitmap(imageBitmap, 0)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        recognizer.process(image)
-            .addOnSuccessListener(OnSuccessListener<Text> { visionText ->
-                displayNumbers(visionText, image.width / 9, image.height / 9)
-            })
-            .addOnFailureListener(OnFailureListener { e ->
-                Toast.makeText(this, "Text recognition failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-            })
+        recognizer.process(image).addOnSuccessListener { visionText ->
+            displayNumbers(visionText, image.width / 9, image.height / 9)
+        }.addOnFailureListener { e ->
+            Log.e(MainActivity::class.simpleName, "Text recognition failed: $e")
+            Toast.makeText(
+                this, "Couldn't recognize your image. Please try again!", Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private fun displayNumbers(visionText: Text, width: Int, height: Int) {
@@ -219,125 +206,21 @@ class MainActivity : ComponentActivity() {
                             sudokuBoard[y][x] = value
                         }
                     } catch (e: NumberFormatException) {
-                        Log.e("NumericText", "Error converting text to number: ${element.text}")
+                        Log.e(
+                            MainActivity::class.simpleName,
+                            "Error converting text to number: ${element.text}"
+                        )
                         // Continue to the next element even if conversion fails
                         continue
                     }
                 }
             }
         }
-        val sudokuBoardBitmap = drawSudokuBoard(sudokuBoard)
-        imageView.setImageBitmap(sudokuBoardBitmap)
+        updateSudokuBoard(sudokuBoard)
     }
 
-    // Check if the initial board state is sovable (after scan)
-    fun isSolvable(sudokuBoard: Array<IntArray>): Boolean {
-        for (i in 0 until 9) {
-            for (j in 0 until 9) {
-                val num = sudokuBoard[i][j]
-
-                if (num != 0 && !isValidForSolving(sudokuBoard, i, j, num)) {
-                    return false
-                }
-            }
-        }
-
-        return true
-    }
-
-    fun isValidForSolving(sudokuBoard: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
-        // Check the row
-        for (i in 0 until 9) {
-            if (i != col && sudokuBoard[row][i] == num) {
-                return false
-            }
-        }
-
-        // Check the column
-        for (i in 0 until 9) {
-            if (i != row && sudokuBoard[i][col] == num) {
-                return false
-            }
-        }
-
-        // Check the 3x3 grid
-        val gridStartRow = 3 * (row / 3)
-        val gridStartCol = 3 * (col / 3)
-
-        for (i in gridStartRow until gridStartRow + 3) {
-            for (j in gridStartCol until gridStartCol + 3) {
-                if ((i != row || j != col) && sudokuBoard[i][j] == num) {
-                    return false
-                }
-            }
-        }
-
-        return true
-    }
-    fun isValid(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
-        // Check if the number can be placed in the specified cell
-        for (i in 0 until 9) {
-            if (board[row][i] == num || board[i][col] == num ||
-                board[3 * (row / 3) + i / 3][3 * (col / 3) + i % 3] == num
-            ) {
-                return false
-            }
-        }
-        return true
-    }
-
-    fun solveSudoku(board: Array<IntArray>): Boolean {
-        // Find an empty cell
-        val emptyCell = findEmptyCell(board)
-
-        // If no empty cell is found, the puzzle is solved
-        if (emptyCell == null) {
-            return true
-        }
-
-        val (row, col) = emptyCell
-
-        // Try placing digits 1 through 9 in the empty cell
-        for (num in 1..9) {
-            if (isValid(board, row, col, num)) {
-                // Place the digit if it's valid
-                Log.d("solveSudoku", "Placed $num at ($row, $col)")
-                logBoard(board)
-                board[row][col] = num
-
-                // Recursively try to solve the rest of the puzzle
-                if (solveSudoku(board)) {
-                    Log.d("solveSudoku", "Backtracked at ($row, $col)")
-                    logBoard(board)
-
-                    return true
-                }
-
-                // If placing the current digit doesn't lead to a solution, backtrack
-                board[row][col] = 0
-            }
-        }
-
-        // No valid digit found, backtrack
-        return false
-    }
-
-    fun logBoard(board: Array<IntArray>) {
-        for (row in board) {
-            Log.d("solveSudoku", row.joinToString(" "))
-        }
-        Log.d("solveSudoku", "----")
-    }
-
-    fun findEmptyCell(board: Array<IntArray>): Pair<Int, Int>? {
-        // Find the first empty cell (cell with value 0)
-        for (i in 0 until 9) {
-            for (j in 0 until 9) {
-                if (board[i][j] == 0) {
-                    return Pair(i, j)
-                }
-            }
-        }
-        return null
-    }}
+    private fun toastErrorSomething() = Toast.makeText(
+        this, "Something went wrong, please try again", Toast.LENGTH_SHORT
+    ).show()
+}
 
