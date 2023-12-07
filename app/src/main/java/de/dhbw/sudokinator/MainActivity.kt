@@ -37,8 +37,17 @@ class MainActivity : AppCompatActivity() {
 
     private val cameraActivityResultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            val imageBitmap = it.data?.extras?.get("data") as Bitmap
-            scanBoard(imageBitmap)
+            when (it.resultCode) {
+                RESULT_OK -> {
+                    val imageBitmap = it.data?.extras?.get("data") as? Bitmap
+                    if (imageBitmap != null) {
+                        scanBoard(imageBitmap)
+                    } else {
+                        toastErrorSomething()
+                    }
+                }
+            }
+
         }
     private val editActivityResultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
