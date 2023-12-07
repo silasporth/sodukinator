@@ -28,4 +28,9 @@ In Bezug auf das Design soll die App auf ein leichtgewichtiges Erscheinungsbild 
 1. Camera dependency: CameraX version 1.3.0-rc01
 2. OCR service: MlKit text recognition version 16.0.0
 
-![alt text](./images/capture.png) | ![alt text](./images/edit.png) | ![alt text](./images/solve.png) | ![alt text](./images/main.png)
+<div style="display: flex; justify-content: space-around;">
+    <img src="./images/capture.png" alt="Capture" style="width: 100px; height: auto;">
+    <img src="./images/edit.png" alt="Edit" style="width: 100px; height: auto;">
+    <img src="./images/solve.png" alt="Solve" style="width: 100px; height: auto;">
+    <img src="./images/main.png" alt="Main" style="width: 100px; height: auto;">
+</div>
