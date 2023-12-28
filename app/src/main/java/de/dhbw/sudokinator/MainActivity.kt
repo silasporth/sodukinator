@@ -1,10 +1,12 @@
 package de.dhbw.sudokinator
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ImageDecoder
 import android.graphics.Paint
 import android.os.Bundle
 import android.provider.MediaStore
@@ -21,7 +23,10 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import de.dhbw.sudokinator.databinding.ActivityMainBinding
-
+import com.canhub.cropper.CropImage
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
 
 class MainActivity : AppCompatActivity() {
 
@@ -67,6 +72,22 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    private val cropImage = registerForActivityResult(CropImageContract()) { result ->
+        if (result.isSuccessful) {
+            val bitmap = result.getBitmap(this)
+            if (bitmap != null) {
+                scanBoard(bitmap)
+            } else {
+                toastErrorSomething()
+            }
+        } else {
+            // An error occurred.
+            toastErrorSomething()
+            val exception = result.error
+            Log.e(MainActivity::class.simpleName, "CROPPING ERROR: $exception")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -91,7 +112,8 @@ class MainActivity : AppCompatActivity() {
                     this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST
                 )
             } else {
-                openCamera()
+                //openCamera()
+                startCrop()
             }
         }
 
@@ -131,6 +153,20 @@ class MainActivity : AppCompatActivity() {
     private fun openCamera() {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         cameraActivityResultLauncher.launch(takePictureIntent)
+    }
+
+    private fun startCrop() {
+        // Start picker to get image for cropping from only gallery and then use the image in cropping activity.
+        cropImage.launch(
+            CropImageContractOptions(
+                uri = null,
+                cropImageOptions = CropImageOptions(
+                    imageSourceIncludeCamera = true,
+                    imageSourceIncludeGallery = false,
+                    fixAspectRatio = true
+                ),
+            ),
+        )
     }
 
     override fun onRequestPermissionsResult(

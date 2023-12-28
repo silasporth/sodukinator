@@ -51,6 +51,7 @@ android {
 }
 
 dependencies {
+    implementation("com.vanniktech:android-image-cropper:4.5.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.0")
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
