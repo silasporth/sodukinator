@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity() {
 
     private val cropImage = registerForActivityResult(CropImageContract()) { result ->
         if (result.isSuccessful) {
+            clearBoard()
             val bitmap = result.getBitmap(this)
             if (bitmap != null) {
                 scanBoard(bitmap)
@@ -122,13 +123,17 @@ class MainActivity : AppCompatActivity() {
 
 
         clearButton.setOnClickListener {
-            for (i in 0 until 9) {
-                for (j in 0 until 9) {
-                    sudokuBoard[i][j] = 0
-                }
-            }
-            updateSudokuBoard(sudokuBoard)
+            clearBoard()
         }
+    }
+
+    private fun clearBoard(){
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                sudokuBoard[i][j] = 0
+            }
+        }
+        updateSudokuBoard(sudokuBoard)
     }
 
     private fun startCrop() {
