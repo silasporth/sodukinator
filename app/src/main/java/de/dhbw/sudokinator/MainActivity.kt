@@ -7,21 +7,22 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.os.Bundle
-import android.provider.MediaStore
+import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import android.util.Log
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import de.dhbw.sudokinator.databinding.ActivityMainBinding
-
 
 class MainActivity : AppCompatActivity() {
 
@@ -35,20 +36,6 @@ class MainActivity : AppCompatActivity() {
     private val sudokuBoard = Array(9) { IntArray(9) }
     private val cleanSudokuImage: Bitmap = createCleanSudokuImage()
 
-    private val cameraActivityResultLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            when (it.resultCode) {
-                RESULT_OK -> {
-                    val imageBitmap = it.data?.extras?.get("data") as? Bitmap
-                    if (imageBitmap != null) {
-                        scanBoard(imageBitmap)
-                    } else {
-                        toastErrorSomething()
-                    }
-                }
-            }
-
-        }
     private val editActivityResultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             when (it.resultCode) {
@@ -66,6 +53,23 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+    private val cropImage = registerForActivityResult(CropImageContract()) { result ->
+        if (result.isSuccessful) {
+            clearBoard()
+            val bitmap = result.getBitmap(this)
+            if (bitmap != null) {
+                scanBoard(bitmap)
+            } else {
+                toastErrorSomething()
+            }
+        } else {
+            // An error occurred.
+            toastErrorSomething()
+            val exception = result.error
+            Log.e(MainActivity::class.simpleName, "CROPPING ERROR: $exception")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,7 +95,7 @@ class MainActivity : AppCompatActivity() {
                     this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST
                 )
             } else {
-                openCamera()
+                startCrop()
             }
         }
 
@@ -119,18 +123,31 @@ class MainActivity : AppCompatActivity() {
 
 
         clearButton.setOnClickListener {
-            for (i in 0 until 9) {
-                for (j in 0 until 9) {
-                    sudokuBoard[i][j] = 0
-                }
-            }
-            updateSudokuBoard(sudokuBoard)
+            clearBoard()
         }
     }
 
-    private fun openCamera() {
-        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        cameraActivityResultLauncher.launch(takePictureIntent)
+    private fun clearBoard(){
+        for (i in 0 until 9) {
+            for (j in 0 until 9) {
+                sudokuBoard[i][j] = 0
+            }
+        }
+        updateSudokuBoard(sudokuBoard)
+    }
+
+    private fun startCrop() {
+        // Start picker to get image for cropping from only gallery and then use the image in cropping activity.
+        cropImage.launch(
+            CropImageContractOptions(
+                uri = null,
+                cropImageOptions = CropImageOptions(
+                    imageSourceIncludeCamera = true,
+                    imageSourceIncludeGallery = false,
+                    fixAspectRatio = true
+                ),
+            ),
+        )
     }
 
     override fun onRequestPermissionsResult(
