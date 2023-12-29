@@ -1,5 +1,6 @@
 package de.dhbw.sudokinator
 
+import android.app.ProgressDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -30,6 +31,7 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import de.dhbw.sudokinator.databinding.ActivityMainBinding
 import java.util.UUID
 
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -42,6 +44,8 @@ class MainActivity : AppCompatActivity() {
     private val CAMERA_PERMISSION_REQUEST = 101
     private val sudokuBoard = Array(9) { IntArray(9) }
     private val cleanSudokuImage: Bitmap = createCleanSudokuImage()
+    private var startNumbersCoordinates = mutableListOf<Pair<Int, Int>>()
+    private lateinit var loadingIndicator: ProgressDialog
 
     private val editActivityResultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -85,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         workManager = WorkManager.getInstance(this)
+        loadingIndicator = ProgressDialog(this)
 
         imageView = binding.imageView
         captureButton = binding.captureButton
@@ -123,6 +128,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            startNumbersCoordinates = saveStartNumbersCoordinates(sudokuBoard)
             val workerUUID = startSudokuSolver()
             trackSudokuSolver(workerUUID)
         }
@@ -138,6 +144,7 @@ class MainActivity : AppCompatActivity() {
                 sudokuBoard[i][j] = 0
             }
         }
+        startNumbersCoordinates.clear()
         updateSudokuBoard(sudokuBoard)
     }
 
@@ -192,7 +199,7 @@ class MainActivity : AppCompatActivity() {
         // Draw Numbers
         val textSize = 40f
         paint.textSize = textSize
-        paint.color = Color.BLACK
+        //paint.color = Color.BLACK
         paint.textAlign = Paint.Align.CENTER
         val halfCellSize = SUDOKU_CELL_PIXEL_SIZE / 2
 
@@ -200,6 +207,12 @@ class MainActivity : AppCompatActivity() {
             for (col in 0 until SUDOKU_COLUMNS) {
                 val cellValue = sudokuBoard[row][col]
                 if (cellValue == 0) continue
+
+                paint.color = if (startNumbersCoordinates.contains(col to row)) {
+                    Color.BLUE
+                } else {
+                    Color.BLACK
+                }
 
                 val x = col * SUDOKU_CELL_PIXEL_SIZE + halfCellSize
                 val y =
@@ -282,10 +295,21 @@ class MainActivity : AppCompatActivity() {
                             this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT
                         ).show()
                     }
+                    loadingIndicator.dismiss()
+                }
+
+                WorkInfo.State.RUNNING -> {
+                    loadingIndicator.apply {
+                        setTitle("Calculating")
+                        setMessage("")
+                        setCancelable(false)
+                        show()
+                    }
                 }
 
                 WorkInfo.State.FAILED -> {
                     toastErrorSomething()
+                    loadingIndicator.dismiss()
                 }
 
                 else -> {}
