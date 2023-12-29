@@ -99,6 +99,19 @@ fun checkColumnsSolvable(sudokuBoard: Array<IntArray>): Boolean {
     return true
 }
 
+// saves the coordinates of the numbers in a sudokuboard into a list
+fun saveStartNumbersCoordinates(sudokuBoard: Array<IntArray>): MutableList<Pair<Int,Int>> {
+    val coordinates = mutableListOf<Pair<Int,Int>>()
+    for (row in 0 until SUDOKU_ROWS) {
+        for (column in 0 until SUDOKU_COLUMNS) {
+            if (sudokuBoard[row][column] != 0) {
+                coordinates.add(column to row)
+            }
+        }
+    }
+    return coordinates
+}
+
 class SolvableSudoku(val sudokuBoard: Array<IntArray>, var solvable: Boolean)
 
 fun logBoard(board: Array<IntArray>) {
