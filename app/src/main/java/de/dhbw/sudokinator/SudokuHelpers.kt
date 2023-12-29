@@ -8,6 +8,13 @@ import android.graphics.Paint
 import android.util.Log
 import kotlin.math.roundToInt
 
+
+fun Array<IntArray>.flatten(): IntArray = flatMap { it.asIterable() }.toIntArray()
+
+fun IntArray.toSudokuBoard(): Array<IntArray> =
+    (this + IntArray(SUDOKU_ROWS * SUDOKU_COLUMNS - size)).asIterable().chunked(9)
+        .map { it.toIntArray() }.toTypedArray()
+
 fun createCleanSudokuImage(): Bitmap {
     val standardLineWidth = 2f
     val blockLineWidth = 4f
@@ -92,60 +99,7 @@ fun checkColumnsSolvable(sudokuBoard: Array<IntArray>): Boolean {
     return true
 }
 
-// Checks if the number can be placed in the specified cell
-fun isValid(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
-    for (i in 0 until 9) {
-        if (board[row][i] == num || board[i][col] == num || board[3 * (row / 3) + i / 3][3 * (col / 3) + i % 3] == num) {
-            return false
-        }
-    }
-    return true
-}
-
-// TODO: Calculate Possibilities for each cell to improve solving speed
-fun solveSudoku(board: Array<IntArray>): Boolean {
-    // Find an empty cell
-    // If no empty cell is found, the puzzle is solved
-    val emptyCell = findEmptyCell(board) ?: return true
-
-    val (row, col) = emptyCell
-
-    // Try placing digits 1 through 9 in the empty cell
-    for (num in 1..9) {
-        if (isValid(board, row, col, num)) {
-            // Place the digit if it's valid
-            Log.d("SudokuHelpers#solveSudoku", "Placed $num at ($row, $col)")
-//            logBoard(board)
-            board[row][col] = num
-
-            // Recursively try to solve the rest of the puzzle
-            if (solveSudoku(board)) {
-                Log.d("SudokuHelpers#solveSudoku", "Backtracked at ($row, $col)")
-//                logBoard(board)
-
-                return true
-            }
-
-            // If placing the current digit doesn't lead to a solution, backtrack
-            board[row][col] = 0
-        }
-    }
-
-    // No valid digit found, backtrack
-    return false
-}
-
-fun findEmptyCell(board: Array<IntArray>): Pair<Int, Int>? {
-    // Find the first empty cell (cell with value 0)
-    for (i in 0 until 9) {
-        for (j in 0 until 9) {
-            if (board[i][j] == 0) {
-                return Pair(i, j)
-            }
-        }
-    }
-    return null
-}
+class SolvableSudoku(val sudokuBoard: Array<IntArray>, var solvable: Boolean)
 
 fun logBoard(board: Array<IntArray>) {
     for (row in board) {
