@@ -6,3 +6,7 @@ const val SUDOKU_CELL_PIXEL_SIZE = 60f
 const val INTENT_EXTRA_SUDOKU_BOARD = "intentExtraSudokuBoard"
 
 const val ACTIVITY_RESULT_ERROR = 5
+
+const val UNIQUE_SOLVER_WORKER_ID = "uniqueSolverWorkerId"
+const val WORKER_DATA_SUDOKU_BOARD = "workerDataSudokuBoard"
+const val WORKER_DATA_SUDOKU_SOLVABLE = "workerDataSudokuSolvable"

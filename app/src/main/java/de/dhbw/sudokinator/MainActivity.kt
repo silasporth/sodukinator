@@ -15,6 +15,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
@@ -23,10 +28,12 @@ import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import de.dhbw.sudokinator.databinding.ActivityMainBinding
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var workManager: WorkManager
     private lateinit var imageView: ImageView
     private lateinit var captureButton: Button
     private lateinit var editButton: Button
@@ -77,6 +84,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        workManager = WorkManager.getInstance(this)
+
         imageView = binding.imageView
         captureButton = binding.captureButton
         editButton = binding.editButton
@@ -109,25 +118,21 @@ class MainActivity : AppCompatActivity() {
         }
 
         solveButton.setOnClickListener {
-            if (isSolvable(sudokuBoard)) {
-                if (solveSudoku(sudokuBoard)) {
-                    updateSudokuBoard(sudokuBoard)
-                } else {
-                    Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT)
-                        .show()
-                }
-            } else {
+            if (!isSolvable(sudokuBoard)) {
                 Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-        }
 
+            val workerUUID = startSudokuSolver()
+            trackSudokuSolver(workerUUID)
+        }
 
         clearButton.setOnClickListener {
             clearBoard()
         }
     }
 
-    private fun clearBoard(){
+    private fun clearBoard() {
         for (i in 0 until 9) {
             for (j in 0 until 9) {
                 sudokuBoard[i][j] = 0
@@ -243,6 +248,49 @@ class MainActivity : AppCompatActivity() {
             }
         }
         updateSudokuBoard(sudokuBoard)
+    }
+
+    private fun startSudokuSolver(): UUID {
+        val data =
+            Data.Builder().putIntArray(WORKER_DATA_SUDOKU_BOARD, sudokuBoard.flatten()).build()
+
+        val solverWorker =
+            OneTimeWorkRequestBuilder<SudokuSolverWorker>().setInputData(data).build()
+
+        workManager.beginUniqueWork(
+            UNIQUE_SOLVER_WORKER_ID, ExistingWorkPolicy.KEEP, solverWorker
+        ).enqueue()
+
+        return solverWorker.id
+    }
+
+    private fun trackSudokuSolver(workerUUID: UUID) {
+        workManager.getWorkInfosForUniqueWorkLiveData(UNIQUE_SOLVER_WORKER_ID).observe(this) {
+            val solverWorkerInfo =
+                it.find { workInfo -> workInfo.id == workerUUID } ?: return@observe
+
+            when (solverWorkerInfo.state) {
+                WorkInfo.State.SUCCEEDED -> {
+                    val data = solverWorkerInfo.outputData
+                    if (data.getBoolean(WORKER_DATA_SUDOKU_SOLVABLE, false)) {
+                        val sudokuBoard =
+                            data.getIntArray(WORKER_DATA_SUDOKU_BOARD)?.toSudokuBoard()
+                                ?: return@observe
+                        updateSudokuBoard(sudokuBoard)
+                    } else {
+                        Toast.makeText(
+                            this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                WorkInfo.State.FAILED -> {
+                    toastErrorSomething()
+                }
+
+                else -> {}
+            }
+        }
     }
 
     private fun toastErrorSomething() = Toast.makeText(
