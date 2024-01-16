@@ -1,7 +1,6 @@
 package de.dhbw.sudokinator
 
 import android.content.Context
-import android.util.Log
 import androidx.work.Data
 import androidx.work.Worker
 import androidx.work.WorkerParameters
@@ -9,114 +8,140 @@ import androidx.work.WorkerParameters
 class SudokuSolverWorker(context: Context, workerParams: WorkerParameters) :
     Worker(context, workerParams) {
     override fun doWork(): Result {
-        val sudokuBoard = inputData.getIntArray(WORKER_DATA_SUDOKU_BOARD)?.toSudokuBoard()
-            ?: return Result.failure()
+        val sudokuBoard = inputData.getIntArray(WORKER_DATA_SUDOKU_BOARD) ?: return Result.failure()
 
         val possibleSolution = solveSudoku(sudokuBoard)
 
         val outputDataBuilder = Data.Builder()
         outputDataBuilder.apply {
-            putBoolean(WORKER_DATA_SUDOKU_SOLVABLE, possibleSolution.solvable)
-            if (possibleSolution.solvable) {
-                putIntArray(WORKER_DATA_SUDOKU_BOARD, possibleSolution.sudokuBoard.flatten())
+            val isSolvable = possibleSolution.isNotEmpty()
+            putBoolean(WORKER_DATA_SUDOKU_SOLVABLE, isSolvable)
+            if (isSolvable) {
+                putIntArray(WORKER_DATA_SUDOKU_BOARD, possibleSolution)
             }
         }
 
         return Result.success(outputDataBuilder.build())
     }
 
-    private fun solveSudoku(board: Array<IntArray>): SolvableSudoku {
-        val freeCells = calculateCandidates(board)
-        return solveSudokuWithCandidates(SolvableSudoku(board, true), freeCells)
+    // Translated version of Peter Norvig's sudoku solving algorithm
+    // http://norvig.com/sudoku.html
+    private fun solveSudoku(board: IntArray): IntArray = try {
+        search(parseSudokuBoard(board))
+    } catch (e: IllegalArgumentException) {
+        IntArray(0)
     }
 
-    private fun calculateCandidates(board: Array<IntArray>): MutableList<Cell> {
-        val freeCells = mutableListOf<Cell>()
+    private fun search(values: Map<String, String>): IntArray {
+        if (values.isEmpty()) return IntArray(0)
 
-        for (row in 0 until SUDOKU_ROWS) {
-            for (col in 0 until SUDOKU_COLUMNS) {
-                if (board[row][col] != 0) continue
+        if (cells.all { values[it]!!.length == 1 }) {
+            return values.map { it.value.toInt() }.toIntArray()
+        }
 
-                val cell = Cell(row, col)
-                for (num in 1..9) {
-                    if (isValid(board, row, col, num)) {
-                        cell.candidates.add(num)
+        val cell = cells.filter { values[it] != null && values[it]!!.length > 1 }
+            .minBy { values[it]!!.length }
+
+        for (value in values[cell]!!) {
+            val copy = values.toMutableMap()
+            if (!isAssignable(copy, cell, value)) continue
+            val result = search(copy)
+            if (result.isNotEmpty()) return result
+        }
+
+        return IntArray(0)
+    }
+
+
+    private fun isAssignable(
+        possibleValuesPerCell: MutableMap<String, String>, cell: String, value: Char
+    ): Boolean {
+        val otherDigits = possibleValuesPerCell[cell]?.replace(value.toString(), "")
+            ?: digits.replace(value.toString(), "")
+        return otherDigits.all { isKillable(possibleValuesPerCell, cell, it) }
+    }
+
+    private fun isKillable(
+        possibleValuesPerCell: MutableMap<String, String>, cell: String, value: Char
+    ): Boolean {
+        if (possibleValuesPerCell[cell]?.contains(value) != true) {
+            return true
+        }
+
+        val newValues = possibleValuesPerCell[cell]?.replace(value.toString(), "")
+            ?: digits.replace(value.toString(), "")
+        possibleValuesPerCell[cell] = newValues
+
+        when (newValues.length) {
+            // Contradiction: removed last value
+            0 -> return false
+            // If there is only one possible value left, then eliminate it from the peers
+            1 -> {
+                if (peers[cell]?.all {
+                        isKillable(
+                            possibleValuesPerCell, it, newValues.first()
+                        )
+                    } != true) {
+                    return false
+                }
+            }
+        }
+
+        units[cell]?.forEach { unit ->
+            val digitPlaces = unit.filter { possibleValuesPerCell[it]?.contains(value) == true }
+            when (digitPlaces.size) {
+                // Contradiction: no place for this value
+                0 -> return false
+                // the value can only be in one place in the unit; assign it there
+                1 -> {
+                    if (!isAssignable(possibleValuesPerCell, digitPlaces.first(), value)) {
+                        return false
                     }
                 }
-                freeCells.add(cell)
             }
-        }
-        return freeCells
-    }
+        } ?: return false
 
-    private fun solveSudokuWithCandidates(
-        solvableSudoku: SolvableSudoku, freeCells: MutableList<Cell>
-    ): SolvableSudoku {
-
-        val board = solvableSudoku.sudokuBoard
-        if (freeCells.isEmpty()) {
-            solvableSudoku.solvable = true
-            return solvableSudoku
-        }
-
-        // sort candidates by size and pop cell with least candidates
-        freeCells.sortByDescending { it.candidates.size }
-        val cell = freeCells.removeLast()
-
-        // test all possibilities for the cell
-        for (num in cell.candidates) {
-            if (!isValid(board, cell.row, cell.col, num)) {
-                continue
-            }
-
-            Log.d("SudokuHelpers#solveSudoku", "Placed $num at (${cell.row}, ${cell.col})")
-            logBoard(board)
-            board[cell.row][cell.col] = num
-
-            // remove cell to avoid conflicts
-            val solution = solveSudokuWithCandidates(solvableSudoku, freeCells)
-            if (solution.solvable) {
-                return solution
-            }
-
-            board[cell.row][cell.col] = 0
-        }
-
-        freeCells.add(cell)
-        Log.d("SudokuHelpers#solveSudoku", "Backtracked at (${cell.row}, ${cell.col})")
-        logBoard(board)
-        solvableSudoku.solvable = false
-        return solvableSudoku
-    }
-
-    // Checks if the number can be placed in the specified cell
-    private fun isValid(board: Array<IntArray>, row: Int, col: Int, num: Int): Boolean {
-        for (i in 0 until 9) {
-            if (board[row][i] == num || board[i][col] == num || board[3 * (row / 3) + i / 3][3 * (col / 3) + i % 3] == num) {
-                return false
-            }
-        }
         return true
     }
 
-    private class Cell(
-        val row: Int, val col: Int, val candidates: MutableList<Int> = mutableListOf()
-    ) {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
+    private fun parseSudokuBoard(board: IntArray): Map<String, String> {
+        if (board.size != 81) throw IllegalArgumentException()
 
-            other as Cell
+        val possibleValuesPerCell = cells.associateWith { digits }.toMutableMap()
+        val valuePerCell = cells.zip(board.map { it.digitToChar() }).toMap()
 
-            if (row != other.row) return false
-            return col == other.col
+        for ((cell, value) in valuePerCell) {
+            if (value in digits && !isAssignable(
+                    possibleValuesPerCell, cell, value
+                )
+            ) {
+                return emptyMap()
+            }
         }
-
-        override fun hashCode(): Int {
-            var result = row
-            result = 31 * result + col
-            return result
-        }
+        return possibleValuesPerCell
     }
 
+
+    companion object {
+        private const val digits = "123456789"
+        private const val rows = "ABCDEFGHI"
+        private const val cols = digits
+        private val cells = crossStrings(rows, cols)
+        private val unitList = cols.map { crossStrings(rows, it.toString()) } + rows.map {
+            crossStrings(
+                it.toString(), cols
+            )
+        } + listOf("ABC", "DEF", "GHI").flatMap { s1 ->
+            listOf(
+                "123", "456", "789"
+            ).map { s2 -> crossStrings(s1, s2) }
+        }
+        private val units = cells.associateWith { s -> unitList.filter { u -> s in u } }
+        private val peers = cells.associateWith { s ->
+            units[s]?.flatten()?.toMutableSet()?.minus(s)?.toList() ?: emptyList()
+        }
+
+        private fun crossStrings(a: String, b: String): List<String> =
+            a.flatMap { c1 -> b.map { c2 -> "$c1$c2" } }
+    }
 }
