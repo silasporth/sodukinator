@@ -6,15 +6,15 @@ import android.widget.GridLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.children
 import de.dhbw.sudokinator.components.EditableSudokuCell
-import de.dhbw.sudokinator.databinding.EditActivityBinding
+import de.dhbw.sudokinator.databinding.ActivityEditBinding
 
 class EditActivity : AppCompatActivity() {
 
-    private lateinit var binding: EditActivityBinding
+    private lateinit var binding: ActivityEditBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = EditActivityBinding.inflate(layoutInflater)
+        binding = ActivityEditBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         val gridLayout = binding.gridLayout

@@ -54,54 +54,9 @@ fun getSudokuFromIntentOrNull(intent: Intent?): Array<IntArray>? =
         } else null
     }
 
-// Check if the sudoku board state is solvable (faster than before)
-fun isSolvable(sudokuBoard: Array<IntArray>): Boolean =
-    checkBlocksSolvable(sudokuBoard) && checkRowsSolvable(sudokuBoard) && checkColumnsSolvable(
-        sudokuBoard
-    )
-
-fun checkBlocksSolvable(sudokuBoard: Array<IntArray>): Boolean {
-    for (i in 0..2) for (j in 0..2) {
-        val numberUnique = BooleanArray(9)
-        for (y in 0..2) for (x in 0..2) {
-            val number = sudokuBoard[i * 3 + y][j * 3 + x]
-            if (number == 0) continue
-            if (numberUnique[number - 1]) return false
-            numberUnique[number - 1] = true
-        }
-    }
-    return true
-}
-
-fun checkRowsSolvable(sudokuBoard: Array<IntArray>): Boolean {
-    for (y in 0 until SUDOKU_ROWS) {
-        val numberUnique = BooleanArray(9)
-        for (x in 0 until SUDOKU_COLUMNS) {
-            val number = sudokuBoard[y][x]
-            if (number == 0) continue
-            if (numberUnique[number - 1]) return false
-            numberUnique[number - 1] = true
-        }
-    }
-    return true
-}
-
-fun checkColumnsSolvable(sudokuBoard: Array<IntArray>): Boolean {
-    for (x in 0 until SUDOKU_COLUMNS) {
-        val numberUnique = BooleanArray(9)
-        for (y in 0 until SUDOKU_ROWS) {
-            val number = sudokuBoard[y][x]
-            if (number == 0) continue
-            if (numberUnique[number - 1]) return false
-            numberUnique[number - 1] = true
-        }
-    }
-    return true
-}
-
 // saves the coordinates of the numbers in a sudokuboard into a list
-fun saveStartNumbersCoordinates(sudokuBoard: Array<IntArray>): MutableList<Pair<Int,Int>> {
-    val coordinates = mutableListOf<Pair<Int,Int>>()
+fun saveStartNumbersCoordinates(sudokuBoard: Array<IntArray>): MutableList<Pair<Int, Int>> {
+    val coordinates = mutableListOf<Pair<Int, Int>>()
     for (row in 0 until SUDOKU_ROWS) {
         for (column in 0 until SUDOKU_COLUMNS) {
             if (sudokuBoard[row][column] != 0) {
@@ -111,8 +66,6 @@ fun saveStartNumbersCoordinates(sudokuBoard: Array<IntArray>): MutableList<Pair<
     }
     return coordinates
 }
-
-class SolvableSudoku(val sudokuBoard: Array<IntArray>, var solvable: Boolean)
 
 fun logBoard(board: Array<IntArray>) {
     for (row in board) {

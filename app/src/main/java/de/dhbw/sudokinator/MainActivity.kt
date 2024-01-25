@@ -123,11 +123,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         solveButton.setOnClickListener {
-            if (!isSolvable(sudokuBoard)) {
-                Toast.makeText(this, "The Sudoku board is unsolvable!", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
             startNumbersCoordinates = saveStartNumbersCoordinates(sudokuBoard)
             val workerUUID = startSudokuSolver()
             trackSudokuSolver(workerUUID)
@@ -160,20 +155,6 @@ class MainActivity : AppCompatActivity() {
                 ),
             ),
         )
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == CAMERA_PERMISSION_REQUEST) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Camera permission granted, open the camera
-
-            } else {
-                Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     private fun updateSudokuBoard(modifiedBoard: Array<IntArray>) {
