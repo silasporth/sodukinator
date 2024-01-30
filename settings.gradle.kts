@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "sudokinator"
 include(":app")
- 
+include(":OpenCV")

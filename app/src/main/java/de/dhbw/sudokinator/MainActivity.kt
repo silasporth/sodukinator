@@ -21,14 +21,9 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.canhub.cropper.CropImageContract
-import com.canhub.cropper.CropImageContractOptions
-import com.canhub.cropper.CropImageOptions
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.Text
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import de.dhbw.sudokinator.databinding.ActivityMainBinding
+import de.dhbw.sudokinator.worker.ProcessSudokuWorker
+import de.dhbw.sudokinator.worker.SudokuSolverWorker
 import java.util.UUID
 
 
@@ -47,6 +42,14 @@ class MainActivity : AppCompatActivity() {
     private var startNumbersCoordinates = mutableListOf<Pair<Int, Int>>()
     private lateinit var loadingIndicator: ProgressDialog
 
+    private val cameraActivityResultLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode != RESULT_OK) return@registerForActivityResult
+
+            val uuid = startProcessSudoku()
+            trackProcessSudoku(uuid)
+        }
+
     private val editActivityResultLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             when (it.resultCode) {
@@ -64,23 +67,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
-    private val cropImage = registerForActivityResult(CropImageContract()) { result ->
-        if (result.isSuccessful) {
-            clearBoard()
-            val bitmap = result.getBitmap(this)
-            if (bitmap != null) {
-                scanBoard(bitmap)
-            } else {
-                toastErrorSomething()
-            }
-        } else {
-            // An error occurred.
-            toastErrorSomething()
-            val exception = result.error
-            Log.e(MainActivity::class.simpleName, "CROPPING ERROR: $exception")
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,7 +95,7 @@ class MainActivity : AppCompatActivity() {
                     this, arrayOf(android.Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST
                 )
             } else {
-                startCrop()
+                openCamera()
             }
         }
 
@@ -133,6 +119,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun openCamera() {
+        cameraActivityResultLauncher.launch(Intent(this@MainActivity, CameraActivity::class.java))
+    }
+
     private fun clearBoard() {
         for (i in 0 until 9) {
             for (j in 0 until 9) {
@@ -141,20 +131,6 @@ class MainActivity : AppCompatActivity() {
         }
         startNumbersCoordinates.clear()
         updateSudokuBoard(sudokuBoard)
-    }
-
-    private fun startCrop() {
-        // Start picker to get image for cropping from only gallery and then use the image in cropping activity.
-        cropImage.launch(
-            CropImageContractOptions(
-                uri = null,
-                cropImageOptions = CropImageOptions(
-                    imageSourceIncludeCamera = true,
-                    imageSourceIncludeGallery = false,
-                    fixAspectRatio = true
-                ),
-            ),
-        )
     }
 
     private fun updateSudokuBoard(modifiedBoard: Array<IntArray>) {
@@ -204,46 +180,6 @@ class MainActivity : AppCompatActivity() {
         return bitmap
     }
 
-    private fun scanBoard(imageBitmap: Bitmap) {
-        val image = InputImage.fromBitmap(imageBitmap, 0)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        recognizer.process(image).addOnSuccessListener { visionText ->
-            displayNumbers(visionText, image.width / 9, image.height / 9)
-        }.addOnFailureListener { e ->
-            Log.e(MainActivity::class.simpleName, "Text recognition failed: $e")
-            Toast.makeText(
-                this, "Couldn't recognize your image. Please try again!", Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-    private fun displayNumbers(visionText: Text, width: Int, height: Int) {
-        for (block in visionText.textBlocks) {
-            for (line in block.lines) {
-                for (element in line.elements) {
-                    try {
-                        val value = element.text.toInt()
-                        Log.d("NumericText", "Numeric text for line: $value")
-
-                        val x = element.boundingBox?.exactCenterX()?.toInt()?.div(width) ?: 0
-                        val y = element.boundingBox?.exactCenterY()?.toInt()?.div(height) ?: 0
-                        if (x in 0..8 && y in 0..8 && value in 1..9) {
-                            sudokuBoard[y][x] = value
-                        }
-                    } catch (e: NumberFormatException) {
-                        Log.e(
-                            MainActivity::class.simpleName,
-                            "Error converting text to number: ${element.text}"
-                        )
-                        // Continue to the next element even if conversion fails
-                        continue
-                    }
-                }
-            }
-        }
-        updateSudokuBoard(sudokuBoard)
-    }
-
     private fun startSudokuSolver(): UUID {
         val data =
             Data.Builder().putIntArray(WORKER_DATA_SUDOKU_BOARD, sudokuBoard.flatten()).build()
@@ -281,7 +217,7 @@ class MainActivity : AppCompatActivity() {
 
                 WorkInfo.State.RUNNING -> {
                     loadingIndicator.apply {
-                        setTitle("Calculating")
+                        setTitle("Calculating...")
                         setMessage("")
                         setCancelable(false)
                         show()
@@ -294,6 +230,74 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 else -> {}
+            }
+        }
+    }
+
+    private fun startProcessSudoku(): UUID {
+        val processSudokuWorker = OneTimeWorkRequestBuilder<ProcessSudokuWorker>().build()
+
+        workManager.beginUniqueWork(
+            UNIQUE_PROCESS_SUDOKU_WORKER_ID, ExistingWorkPolicy.KEEP, processSudokuWorker
+        ).enqueue()
+
+        return processSudokuWorker.id
+    }
+
+    private fun trackProcessSudoku(workerUUID: UUID) {
+        workManager.getWorkInfosForUniqueWorkLiveData(UNIQUE_PROCESS_SUDOKU_WORKER_ID)
+            .observe(this) {
+                val processSudokuWorkerInfo =
+                    it.find { workInfo -> workInfo.id == workerUUID } ?: return@observe
+
+                when (processSudokuWorkerInfo.state) {
+                    WorkInfo.State.SUCCEEDED -> {
+                        val sudokuBoard =
+                            processSudokuWorkerInfo.outputData.getIntArray(WORKER_DATA_SUDOKU_BOARD)
+                                ?.toSudokuBoard()
+                        if (sudokuBoard == null) {
+                            toastErrorSomething()
+                            loadingIndicator.dismiss()
+                            return@observe
+                        }
+                        updateSudokuBoard(sudokuBoard)
+                        loadingIndicator.dismiss()
+                    }
+
+                    WorkInfo.State.RUNNING -> {
+                        loadingIndicator.apply {
+                            setTitle("Extracting numbers...")
+                            setMessage("")
+                            setCancelable(false)
+                            show()
+                        }
+                    }
+
+                    WorkInfo.State.FAILED -> {
+                        Log.e(MainActivity::class.simpleName, "Text recognition failed!")
+                        Toast.makeText(
+                            this,
+                            "Could not process your sudoku. Please try again",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        loadingIndicator.dismiss()
+                    }
+
+                    else -> {}
+                }
+            }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == CAMERA_PERMISSION_REQUEST) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Camera permission granted, open the camera
+                openCamera()
+            } else {
+                Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
             }
         }
     }
