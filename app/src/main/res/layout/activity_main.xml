@@ -8,14 +8,13 @@
 
     <ImageView
         android:id="@+id/imageView"
-        android:layout_width="367dp"
-        android:layout_height="348dp"
-        android:layout_marginTop="10dp"
+        android:layout_width="360dp"
+        android:layout_height="360dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.394" />
+        app:layout_constraintVertical_bias="0.4" />
 
     <Button
         android:id="@+id/captureButton"
@@ -24,13 +23,13 @@
         android:background="@drawable/rounded_button"
         android:backgroundTint="@color/light_gray"
         android:drawableEnd="@drawable/camera"
+        android:elevation="20dp"
         android:paddingHorizontal="10dp"
         android:text="Capture"
-        android:elevation="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/solveButton"
+        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintStart_toStartOf="@+id/solveButton"
         app:layout_constraintTop_toBottomOf="@+id/solveButton"
         app:layout_constraintVertical_bias="0.5" />
 
@@ -38,53 +37,50 @@
         android:id="@+id/editButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="136dp"
         android:background="@drawable/rounded_button"
         android:backgroundTint="@color/light_blue"
-        android:paddingHorizontal="10dp"
-        android:text="Edit"
         android:drawableRight="@drawable/edit"
         android:elevation="20dp"
+        android:paddingHorizontal="10dp"
+        android:text="Edit"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/solveButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imageView"
-        app:layout_constraintVertical_bias="0.4" />
+        app:layout_constraintVertical_bias="0.25" />
 
     <Button
         android:id="@+id/solveButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="136dp"
         android:background="@drawable/rounded_button"
         android:backgroundTint="@color/green"
-        android:paddingHorizontal="10dp"
-        android:text="Solve"
         android:drawableRight="@drawable/solve"
         android:elevation="20dp"
+        android:paddingHorizontal="10dp"
+        android:text="Solve"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/clearButton"
         app:layout_constraintHorizontal_bias="0.25"
         app:layout_constraintStart_toEndOf="@id/editButton"
         app:layout_constraintTop_toBottomOf="@+id/imageView"
-        app:layout_constraintVertical_bias="0.4" />
+        app:layout_constraintVertical_bias="0.25" />
 
     <Button
         android:id="@+id/clearButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="136dp"
         android:background="@drawable/rounded_button"
         android:backgroundTint="@color/yellow"
-        android:paddingHorizontal="10dp"
-        android:text="Clear"
         android:drawableRight="@drawable/clear"
         android:elevation="20dp"
+        android:paddingHorizontal="10dp"
+        android:text="Clear"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/solveButton"
         app:layout_constraintTop_toBottomOf="@+id/imageView"
-        app:layout_constraintVertical_bias="0.4" />
+        app:layout_constraintVertical_bias="0.25" />
 
     <TextView
         android:id="@+id/textView"

@@ -36,9 +36,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var editButton: Button
     private lateinit var solveButton: Button
     private lateinit var clearButton: Button
+    private lateinit var cleanSudokuImage: Bitmap
     private val CAMERA_PERMISSION_REQUEST = 101
     private val sudokuBoard = Array(9) { IntArray(9) }
-    private val cleanSudokuImage: Bitmap = createCleanSudokuImage()
     private var startNumbersCoordinates = mutableListOf<Pair<Int, Int>>()
     private lateinit var loadingIndicator: ProgressDialog
 
@@ -82,6 +82,8 @@ class MainActivity : AppCompatActivity() {
         editButton = binding.editButton
         solveButton = binding.solveButton
         clearButton = binding.clearButton
+
+        cleanSudokuImage = createCleanSudokuImage(imageView.layoutParams.width)
 
         drawSudokuBoard(sudokuBoard)
 
@@ -153,12 +155,13 @@ class MainActivity : AppCompatActivity() {
         val canvas = Canvas(bitmap)
         val paint = Paint()
 
+        val sudokuCellSize = imageView.layoutParams.width / SUDOKU_COLUMNS
+
         // Draw Numbers
-        val textSize = 40f
-        paint.textSize = textSize
+        paint.textSize = sudokuCellSize * 2f / 3f
         //paint.color = Color.BLACK
         paint.textAlign = Paint.Align.CENTER
-        val halfCellSize = SUDOKU_CELL_PIXEL_SIZE / 2
+        val halfCellSize = sudokuCellSize / 2f
 
         for (row in 0 until SUDOKU_ROWS) {
             for (col in 0 until SUDOKU_COLUMNS) {
@@ -171,9 +174,8 @@ class MainActivity : AppCompatActivity() {
                     Color.BLACK
                 }
 
-                val x = col * SUDOKU_CELL_PIXEL_SIZE + halfCellSize
-                val y =
-                    row * SUDOKU_CELL_PIXEL_SIZE + halfCellSize - (paint.ascent() + paint.descent()) / 2
+                val x = col * sudokuCellSize + halfCellSize
+                val y = row * sudokuCellSize + halfCellSize - (paint.ascent() + paint.descent()) / 2
                 canvas.drawText(cellValue.toString(), x, y, paint)
             }
         }

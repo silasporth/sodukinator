@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.util.Log
-import kotlin.math.roundToInt
 
 
 fun Array<IntArray>.flatten(): IntArray = flatMap { it.asIterable() }.toIntArray()
@@ -15,20 +14,19 @@ fun IntArray.toSudokuBoard(): Array<IntArray> =
     (this + IntArray(SUDOKU_ROWS * SUDOKU_COLUMNS - size)).asIterable().chunked(9)
         .map { it.toIntArray() }.toTypedArray()
 
-fun createCleanSudokuImage(): Bitmap {
-    val standardLineWidth = 2f
-    val blockLineWidth = 4f
-    val boardLength = SUDOKU_COLUMNS * SUDOKU_CELL_PIXEL_SIZE
+fun createCleanSudokuImage(boardLength: Int): Bitmap {
+    val standardLineWidth = boardLength / 240f
+    val blockLineWidth = standardLineWidth * 2
 
     val bitmap = Bitmap.createBitmap(
-        boardLength.roundToInt(), boardLength.roundToInt(), Bitmap.Config.ARGB_8888
+        boardLength, boardLength, Bitmap.Config.ARGB_8888
     )
     val canvas = Canvas(bitmap)
     val paint = Paint()
 
     // Draw background
     paint.color = Color.WHITE
-    canvas.drawRect(0f, 0f, boardLength, boardLength, paint)
+    canvas.drawRect(0f, 0f, boardLength.toFloat(), boardLength.toFloat(), paint)
 
     paint.color = Color.BLACK
     for (i in 0..SUDOKU_COLUMNS) {
@@ -36,12 +34,12 @@ fun createCleanSudokuImage(): Bitmap {
         paint.strokeWidth =
             if (i % 3 == 0 && i > 0 && i < SUDOKU_COLUMNS) blockLineWidth else standardLineWidth
 
-        val width = i * SUDOKU_CELL_PIXEL_SIZE
+        val lineLength = i * boardLength / 9f
         // Vertical line
-        canvas.drawLine(width, 0f, width, boardLength, paint)
+        canvas.drawLine(lineLength, 0f, lineLength, boardLength.toFloat(), paint)
 
         // Horizontal line
-        canvas.drawLine(0f, width, boardLength, width, paint)
+        canvas.drawLine(0f, lineLength, boardLength.toFloat(), lineLength, paint)
     }
     return bitmap
 }
