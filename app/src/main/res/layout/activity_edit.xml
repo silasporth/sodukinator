@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".EditActivity">
 
-    <GridLayout
+    <!--<GridLayout
         android:id="@+id/gridLayout"
         android:layout_width="400dp"
         android:layout_height="400dp"
@@ -18,12 +18,51 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
+    </GridLayout>-->
 
-        <!-- Add buttons or other views here for each cell in the grid -->
 
-    </GridLayout>
+    <de.dhbw.sudokinator.components.EditableSudokuGrid
+        android:id="@+id/editableSudokuGrid"
+        android:layout_width="360dp"
+        android:layout_height="360dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.49"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.401">
 
-    <!-- Add a "Done" button at the bottom in the middle -->
+    </de.dhbw.sudokinator.components.EditableSudokuGrid>
+
+    <LinearLayout
+        android:id="@+id/buttonRow"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/editableSudokuGrid"
+        app:layout_constraintVertical_bias="0.139">
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/clearButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rounded_button"
+        android:backgroundTint="@color/yellow"
+        android:drawableRight="@drawable/clear"
+        android:elevation="20dp"
+        android:paddingHorizontal="10dp"
+        android:text="Clear"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/doneButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonRow"
+        app:layout_constraintVertical_bias="0.35" />
+
     <Button
         android:id="@+id/doneButton"
         android:layout_width="wrap_content"
@@ -35,7 +74,9 @@
         android:text="Done"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/gridLayout" />
+        app:layout_constraintHorizontal_bias="0.764"
+        app:layout_constraintStart_toEndOf="@id/clearButton"
+        app:layout_constraintTop_toBottomOf="@+id/buttonRow"
+        app:layout_constraintVertical_bias="0.35" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

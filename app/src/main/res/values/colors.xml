@@ -22,4 +22,6 @@
     <color name="gray_blue">#4b6584</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="transparent_blue">#A64FC3F7</color>
+    <color name="transparent_light_blue">#262d98da</color>
 </resources>

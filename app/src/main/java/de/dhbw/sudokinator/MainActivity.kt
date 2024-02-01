@@ -35,10 +35,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var captureButton: Button
     private lateinit var editButton: Button
     private lateinit var solveButton: Button
-    private lateinit var clearButton: Button
     private lateinit var cleanSudokuImage: Bitmap
     private val CAMERA_PERMISSION_REQUEST = 101
-    private val sudokuBoard = Array(9) { IntArray(9) }
+    private val sudokuBoard = Array(SUDOKU_ROWS) { IntArray(SUDOKU_COLUMNS) }
     private var startNumbersCoordinates = mutableListOf<Pair<Int, Int>>()
     private lateinit var loadingIndicator: ProgressDialog
 
@@ -58,6 +57,7 @@ class MainActivity : AppCompatActivity() {
                     if (modifiedBoard == null) {
                         toastErrorSomething()
                     } else {
+                        startNumbersCoordinates = saveStartNumbersCoordinates(modifiedBoard)
                         updateSudokuBoard(modifiedBoard)
                     }
                 }
@@ -81,7 +81,6 @@ class MainActivity : AppCompatActivity() {
         captureButton = binding.captureButton
         editButton = binding.editButton
         solveButton = binding.solveButton
-        clearButton = binding.clearButton
 
         cleanSudokuImage = createCleanSudokuImage(imageView.layoutParams.width)
 
@@ -107,7 +106,6 @@ class MainActivity : AppCompatActivity() {
                     INTENT_EXTRA_SUDOKU_BOARD, sudokuBoard
                 )
             )
-            Log.d("State", "Sudoku board: ${sudokuBoard.contentDeepToString()}")
         }
 
         solveButton.setOnClickListener {
@@ -115,24 +113,10 @@ class MainActivity : AppCompatActivity() {
             val workerUUID = startSudokuSolver()
             trackSudokuSolver(workerUUID)
         }
-
-        clearButton.setOnClickListener {
-            clearBoard()
-        }
     }
 
     private fun openCamera() {
         cameraActivityResultLauncher.launch(Intent(this@MainActivity, CameraActivity::class.java))
-    }
-
-    private fun clearBoard() {
-        for (i in 0 until 9) {
-            for (j in 0 until 9) {
-                sudokuBoard[i][j] = 0
-            }
-        }
-        startNumbersCoordinates.clear()
-        updateSudokuBoard(sudokuBoard)
     }
 
     private fun updateSudokuBoard(modifiedBoard: Array<IntArray>) {
@@ -169,9 +153,9 @@ class MainActivity : AppCompatActivity() {
                 if (cellValue == 0) continue
 
                 paint.color = if (startNumbersCoordinates.contains(col to row)) {
-                    Color.BLUE
-                } else {
                     Color.BLACK
+                } else {
+                    getColor(R.color.royal_blue)
                 }
 
                 val x = col * sudokuCellSize + halfCellSize
@@ -262,6 +246,7 @@ class MainActivity : AppCompatActivity() {
                             loadingIndicator.dismiss()
                             return@observe
                         }
+                        startNumbersCoordinates = saveStartNumbersCoordinates(sudokuBoard)
                         updateSudokuBoard(sudokuBoard)
                         loadingIndicator.dismiss()
                     }
