@@ -2,6 +2,7 @@ package de.dhbw.sudokinator
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -21,7 +22,7 @@ class EditActivity : AppCompatActivity() {
         val clearButton = binding.clearButton
         val doneButton = binding.doneButton
 
-        val sudokuBoard = getSudokuFromIntentOrNull(intent)
+        val sudokuBoard = intent.getIntArrayExtra(INTENT_EXTRA_SUDOKU_BOARD)?.toSudokuBoard()
         if (sudokuBoard == null) {
             setResult(ACTIVITY_RESULT_ERROR)
             finish()
@@ -38,7 +39,7 @@ class EditActivity : AppCompatActivity() {
         doneButton.setOnClickListener {
             // Create an intent to pass the modified Sudoku board back to the main activity
             val newSudokuBoard = editableSudokuGrid.sudokuBoard
-            val resultIntent = Intent().putExtra(INTENT_EXTRA_SUDOKU_BOARD, newSudokuBoard)
+            val resultIntent = Intent().putExtra(INTENT_EXTRA_SUDOKU_BOARD, newSudokuBoard.flatten())
             setResult(RESULT_OK, resultIntent)
 
             // Finish the EditActivity to return to the main activity
@@ -53,22 +54,21 @@ class EditActivity : AppCompatActivity() {
                     text = "$i"
                     textSize = 32f
                     setTextColor(getColor(R.color.turquoise))
-                    setPadding(24, 0, 24, 0)
-                    setOnClickListener {
-                        binding.editableSudokuGrid.setSudokuNumber(i)
-                    }
+                    setBasicSettings(i)
                 }
                 addView(button)
             }
             addView(ImageView(this@EditActivity).apply {
-
                 setImageDrawable(AppCompatResources.getDrawable(context, R.drawable.clear))
-
-                setPadding(24, 0, 24, 0)
-                setOnClickListener {
-                    binding.editableSudokuGrid.setSudokuNumber(0)
-                }
+                setBasicSettings(0)
             })
+        }
+    }
+
+    private fun View.setBasicSettings(number: Int) {
+        setPadding(24, 0, 24, 0)
+        setOnClickListener {
+            binding.editableSudokuGrid.setSudokuNumber(number)
         }
     }
 }

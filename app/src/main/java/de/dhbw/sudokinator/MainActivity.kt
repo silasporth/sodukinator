@@ -9,7 +9,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,11 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var workManager: WorkManager
     private lateinit var imageView: ImageView
-    private lateinit var captureButton: Button
-    private lateinit var editButton: Button
-    private lateinit var solveButton: Button
     private lateinit var cleanSudokuImage: Bitmap
-    private val CAMERA_PERMISSION_REQUEST = 101
     private val sudokuBoard = Array(SUDOKU_ROWS) { IntArray(SUDOKU_COLUMNS) }
     private var startNumbersCoordinates = mutableListOf<Pair<Int, Int>>()
     private lateinit var loadingIndicator: ProgressDialog
@@ -53,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             when (it.resultCode) {
                 RESULT_OK -> {
-                    val modifiedBoard = getSudokuFromIntentOrNull(it.data)
+                    val modifiedBoard = it.data?.getIntArrayExtra(INTENT_EXTRA_SUDOKU_BOARD)?.toSudokuBoard()
                     if (modifiedBoard == null) {
                         toastErrorSomething()
                     } else {
@@ -78,15 +73,12 @@ class MainActivity : AppCompatActivity() {
         loadingIndicator = ProgressDialog(this)
 
         imageView = binding.imageView
-        captureButton = binding.captureButton
-        editButton = binding.editButton
-        solveButton = binding.solveButton
 
         cleanSudokuImage = createCleanSudokuImage(imageView.layoutParams.width)
 
         drawSudokuBoard(sudokuBoard)
 
-        captureButton.setOnClickListener {
+        binding.captureButton.setOnClickListener {
             if (ContextCompat.checkSelfPermission(
                     this, android.Manifest.permission.CAMERA
                 ) != PackageManager.PERMISSION_GRANTED
@@ -100,15 +92,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        editButton.setOnClickListener {
+        binding.editButton.setOnClickListener {
             editActivityResultLauncher.launch(
                 Intent(this@MainActivity, EditActivity::class.java).putExtra(
-                    INTENT_EXTRA_SUDOKU_BOARD, sudokuBoard
+                    INTENT_EXTRA_SUDOKU_BOARD, sudokuBoard.flatten()
                 )
             )
         }
 
-        solveButton.setOnClickListener {
+        binding.solveButton.setOnClickListener {
             startNumbersCoordinates = saveStartNumbersCoordinates(sudokuBoard)
             val workerUUID = startSudokuSolver()
             trackSudokuSolver(workerUUID)
@@ -143,7 +135,6 @@ class MainActivity : AppCompatActivity() {
 
         // Draw Numbers
         paint.textSize = sudokuCellSize * 2f / 3f
-        //paint.color = Color.BLACK
         paint.textAlign = Paint.Align.CENTER
         val halfCellSize = sudokuCellSize / 2f
 
@@ -292,5 +283,9 @@ class MainActivity : AppCompatActivity() {
     private fun toastErrorSomething() = Toast.makeText(
         this, "Something went wrong, please try again", Toast.LENGTH_SHORT
     ).show()
+
+    companion object {
+        private const val CAMERA_PERMISSION_REQUEST = 101
+    }
 }
 

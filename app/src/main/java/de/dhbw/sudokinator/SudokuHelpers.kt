@@ -1,11 +1,10 @@
 package de.dhbw.sudokinator
 
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.util.Log
+import androidx.core.graphics.createBitmap
 
 
 fun Array<IntArray>.flatten(): IntArray = flatMap { it.asIterable() }.toIntArray()
@@ -18,7 +17,7 @@ fun createCleanSudokuImage(boardLength: Int): Bitmap {
     val standardLineWidth = boardLength / 240f
     val blockLineWidth = standardLineWidth * 2
 
-    val bitmap = Bitmap.createBitmap(
+    val bitmap = createBitmap(
         boardLength, boardLength, Bitmap.Config.ARGB_8888
     )
     val canvas = Canvas(bitmap)
@@ -44,14 +43,6 @@ fun createCleanSudokuImage(boardLength: Int): Bitmap {
     return bitmap
 }
 
-@Suppress("UNCHECKED_CAST")
-fun getSudokuFromIntentOrNull(intent: Intent?): Array<IntArray>? =
-    intent?.getSerializableExtra(INTENT_EXTRA_SUDOKU_BOARD).let { sudoku ->
-        if (sudoku is Array<*> && sudoku.size == SUDOKU_ROWS && sudoku.all { arr -> arr is IntArray && arr.size == SUDOKU_COLUMNS }) {
-            sudoku as Array<IntArray>
-        } else null
-    }
-
 // saves the coordinates of the numbers in a sudokuboard into a list
 fun saveStartNumbersCoordinates(sudokuBoard: Array<IntArray>): MutableList<Pair<Int, Int>> {
     val coordinates = mutableListOf<Pair<Int, Int>>()
@@ -63,11 +54,4 @@ fun saveStartNumbersCoordinates(sudokuBoard: Array<IntArray>): MutableList<Pair<
         }
     }
     return coordinates
-}
-
-fun logBoard(board: Array<IntArray>) {
-    for (row in board) {
-        Log.d("solveSudoku", row.joinToString(" "))
-    }
-    Log.d("solveSudoku", "----")
 }

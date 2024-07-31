@@ -1,9 +1,0 @@
-<!-- res/drawable/grid_cell_background.xml -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@android:color/white" />
-    <corners android:radius="4dp" />
-    <stroke
-        android:width="2dp"
-        android:color="@android:color/black" />
-</shape>

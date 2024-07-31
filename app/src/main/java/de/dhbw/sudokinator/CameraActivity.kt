@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.SurfaceView
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.createBitmap
 import de.dhbw.sudokinator.databinding.ActivityCameraBinding
 import org.opencv.android.CameraBridgeViewBase
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2
@@ -63,7 +64,7 @@ class CameraActivity : AppCompatActivity(), CvCameraViewListener2 {
             val rotatedImg = Mat()
             Imgproc.warpPerspective(extractedImg, rotatedImg, matrix, Size(450.0, 450.0))
 
-            val bitmap = Bitmap.createBitmap(
+            val bitmap = createBitmap(
                 rotatedImg.width(), rotatedImg.height(), Bitmap.Config.ARGB_8888
             )
             Utils.matToBitmap(rotatedImg, bitmap)

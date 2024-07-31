@@ -51,7 +51,7 @@ class EditableSudokuGrid(context: Context, attrs: AttributeSet) : View(context, 
                 selectedColumn!! * cellSize.toFloat(),
                 cellSize * 9f,
                 boardPaint
-            );
+            )
 
             canvas.drawRect(
                 0f,
@@ -59,7 +59,7 @@ class EditableSudokuGrid(context: Context, attrs: AttributeSet) : View(context, 
                 cellSize * 9f,
                 selectedRow!! * cellSize.toFloat(),
                 boardPaint
-            );
+            )
 
 
             boardPaint.color = resources.getColor(R.color.transparent_blue, context.theme)
